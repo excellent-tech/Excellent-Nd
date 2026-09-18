@@ -146,13 +146,13 @@ V1 では専用 DB を作らない。
 
 ## 実行 host と routing
 
-V1 はまず 1 台の実行 host で end-to-end を検証し、安定後に同一 profile を 2 台目へ展開できる構成を目指す。
+V1 はまず 1 台の execution host で end-to-end を検証し、安定後に 2 台目へ展開する。
 
-複数 host を使う場合、人間の責任者である `assignee` と、実際に Codex を動かす `execution target` を分離して扱う。
+人間の責任者である `owner / assignee` と、実際に Codex を動かす `execution_target` は分離する。
 
-Symphony の `required_labels` 等、既存機能で Task を対象 host へ振り分けられる範囲を優先し、独自 scheduler は追加しない。
+Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中は固定する**。明示的な host 移行が必要になった場合は、同じ Issue の host 情報を書き換えず、checkpoint を残して後継 Issue を作成する。これにより 1 Issue 内に複数 host の実行履歴を混在させない。
 
-具体的な label 名や host routing 規則は PoC で確定する。
+複数 host では Symphony の `required_labels` 等を使って host ごとに routing 条件を分離し、同じ Issue を複数 instance が取得しない構成を優先する。独自分散 scheduler / lock は V1 では追加しない。
 
 ## Symphony の責務
 
@@ -197,7 +197,7 @@ Excellent-Nd は Codex App Server client を独自実装しない。
 | `relevant_references` | Issue、文書、ファイル、commit 等 |
 | `dependencies` | 先行 Task 等の依存関係 |
 
-V1 では GitHub Issue body を最初の実体候補とし、専用 transport / DB を前提にしない。
+V1 では GitHub Issue body を Execution Packet の実体とし、**人間向け Markdown と Codex 向け machine-readable JSON block を併記する**。JSON block の初期 schema は `skills/excellent-nd/references/task-schema.md` を正とし、専用 transport / DB は前提にしない。
 
 ## Execution Result
 
@@ -235,37 +235,70 @@ ChatGPT は GitHub から Plan に紐づく各 Task / PR / verification を取�
 
 この一操作で十分な間は、既存 Chat への自動書込み IF や独自 notification infrastructure を作らない。
 
-## Human Gate
+## Workflow state と Human Gate
 
-人間判断が必要になった Task は GitHub 上に blocked 状態と質問を残す。
+V1 の人間向け active state は次の 4 つとする。
 
-例:
+| 表示 | machine value | 意味 |
+| --- | --- | --- |
+| 実行予定 | `scheduled` | Human GO 済みで実行可能 |
+| 処理中 | `running` | Codex が処理中 |
+| 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
+| レビュー | `review` | 実装・検証後のレビュー待ち |
+
+GitHub native state の open / closed と、上記 workflow state は分離する。
+
+人間判断が必要になった Task は Issue Workpad に blocked 理由・根拠・質問を保存し、実行 control label 等を外して continuation を停止する。人間回答後は同じ Issue を実行予定へ戻し、原則として同じ Codex thread の continuation を試みる。
 
 ```text
-Task → blocked
-     → GitHubに質問・根拠を保存
-     → 人間がChatGPTで状況取得
-     → 人間が判断
-     → ChatGPTが判断結果をGitHubへ反映
-     → Task continuation
+Task → 保留
+     → Issue Workpad に質問・根拠
+     → ChatGPT で状況取得
+     → Human decision
+     → Issue に回答を保存
+     → 実行予定へ戻す
+     → same Task continuation
 ```
 
 V1 では複雑な approval engine を作らない。
 
 ## checkpoint
 
-Git は source、branch、commit、diff を保持する。
+V1 の checkpoint は **Issue Workpad + branch / commit + PR** を基本とする。
 
-checkpoint は次を保持する。
+- Git branch / commit / diff: コード状態
+- PR: レビュー可能な変更状態
+- Issue Workpad: objective、decisions、completed work、remaining work、verification、risks / blockers、handoff
 
-- objective
-- decisions
-- completed work
-- remaining work
-- verification
-- risks / blockers
+repository artifact や独自 DB は V1 では必須にしない。Codex 会話全文も復旧の正本にしない。
 
-Codex 会話全文を復旧の正本にしない。
+## Account usage limit と再開
+
+通常の一時エラーには Symphony の retry / backoff を利用できるが、数時間の usage window や週次枠の枯渇に短周期 retry を繰り返す運用は採用しない。
+
+usage limit を検出した場合は Task を `blocked` / 保留として Issue Workpad に理由を保存する。信頼できる reset timestamp が取得でき、既存機能で安全に時刻指定再開できる場合は reset 後の再開を利用する。V1 の標準機能だけで安全な長時間再開を構成できない場合は、人間の明示的な再開指示を使用する。
+
+独自 quota-aware scheduler は V1 では作らない。必要性は実運用で再評価する。
+
+## ChatGPT Skill
+
+共通の ChatGPT 操作規約は `skills/excellent-nd/` で管理する。
+
+Skill は新しい通信 IF を提供するものではなく、Plan 分割、Human GO、Issue 作成、machine-readable schema、結果取り込み、Human Gate、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
+
+組織・プロジェクト固有の host 名、credential、非公開運用ルールは public Skill に含めない。
+
+## Version policy
+
+実行環境は常に latest に追従せず、**validated stable** と **development** を分離する。
+
+validated stable は Symphony / Codex / WORKFLOW / Skill の動作確認済み version set を固定して通常作業に使用する。新しい stable release が出ても自動更新しない。
+
+development は新しい stable / nightly / development version の検証専用とする。
+
+強制アップデート時は、single Task、multi Task、routing、continuation、Human Gate、PR、result import、machine-readable schema、usage limit、restart/recovery を含む V1 全回帰テストを通してから validated stable へ昇格する。
+
+詳細は `skills/excellent-nd/references/version-policy.md` を参照する。
 
 ## トークン削減
 
