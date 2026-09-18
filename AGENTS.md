@@ -29,10 +29,16 @@ Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から Hum
 - 原則 1 Task = 1 Codex thread とし、同じ Task の continuation は同一 thread を優先する。
 - 複数 Task を複数担当へ概算負荷比率で割り当てられる。
 - V1 で実行する Task は GitHub Issue として Durable 化する。
+- 1 Issue の execution target は固定し、host 移行時は checkpoint を持つ後継 Issue を作る。
+- active workflow state は 実行予定 / 処理中 / 保留 / レビュー とする。
+- Issue は人間向け説明と Codex 向け machine-readable block を併記する。
 - Symphony が提供する Issue-first orchestration は再実装しない。
 - GitHub 操作は公式連携を優先し、不要なら独自 API client を作らない。
 - 会話全文ではなく Execution Packet、Execution Result、Git 状態、checkpoint を受け渡す。
 - ChatGPT への自動 push は V1 非対象とし、人間の「結果を取り込んで」等の明示的な pull を基本とする。
+- 数時間・週次の usage limit は短周期 retry を続けず、reset 後の既存再開手段または人間の再開指示を使う。
+- 共通 ChatGPT workflow は `skills/excellent-nd/` を Source of Truth とする。
+- validated stable と development を分離し、stable は latest へ自動追従しない。強制更新は V1 全回帰テストを必須とする。
 - 独自 Runner、独自 SQLite、独自 scheduler、独自 retry、独自 workspace manager を V1 の前提にしない。
 - 独自 Kanban、大型 Web UI、中央 DB、通知基盤、multi-agent、multi-provider、SaaS、multi-tenant、汎用 workflow engine は V1 非対象とする。
 
