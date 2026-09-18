@@ -19,7 +19,9 @@ Human + ChatGPT: clarify requirements → Plan → Human GO
                                                ↓
 Excellent-Nd workflow:                  prepare 1 Task
                                                ↓
-Symphony / Codex:             implement, investigate, verify
+Execution:
+  ├─ Durable Task → Symphony → Codex
+  └─ lightweight Task → execution path TBD → Codex
                                                ↓
 ChatGPT + Human:              review Result → next decision
 ```
