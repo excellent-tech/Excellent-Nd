@@ -1,18 +1,34 @@
 # 未確定事項
 
-ここには V1 着手前または初期検証で判断が必要な事項だけを記載する。候補は確定仕様ではない。
+V1 の基本構成は次で固定する。
+
+> ChatGPT → Plan / Task分割 / Human GO → GitHub Issues → Symphony → Codex → GitHub Result → 人間の明示的な取り込み → ChatGPT
+
+以下だけを PoC で確定する。
 
 | 未確定事項 | 確認すること | 判断結果が影響する範囲 |
 | --- | --- | --- |
-| ChatGPT から Codex 実行開始までの最小経路 | 利用可能な公式連携、認証境界、同期 / 非同期の制約 | V1 の入口と transport |
-| lightweight Task の実行方法 | Issue なしで Codex を開始・観測・停止する最小手段 | Symphony を使わない経路の要否 |
-| Symphony と直接 Codex 実行の使い分け | 作業時間、共有、再開、Human Gate、履歴の観点での境界 | lightweight / Durable Task の運用基準 |
-| ChatGPT への結果返却方法 | pull で status / result を取得できるか、参照先をどう示すか | V1 の出口 |
-| Human Gate の再開方法 | blocked / question の表現、回答の渡し方、同一 thread 継続可否 | continuation と checkpoint |
-| token / usage 情報 | Codex App Server と Symphony が安定して提供する項目、集計単位、欠損時の扱い | Execution Result と可観測性 |
-| GitHub Issue への昇格条件 | 手動判断に必要な最小チェック項目、実行途中の昇格方法 | Durable Task 作成 |
-| ChatGPT Skill の責務 | Plan の圧縮、Packet 作成、GO 確認、Result 表示のどこまでを担うか | ChatGPT 側の最小構成 |
-| Symphony reference implementation の利用形態 | 評価用 Elixir 実装をそのまま使う範囲、設定 / profile だけを提供する案、安全要件 | 配布・運用・保守 |
-| upstream Symphony 追従 | Draft 仕様と prototype の変更検知、互換性確認、固定する version / commit | 継続保守 |
-| Execution Packet / Result の表現 | Markdown、JSON 等の候補と、schema を固定する最小時期 | 受渡しと検証 |
-| checkpoint の保存先 | GitHub Issue、repository 内 artifact、その他既存機能のどれで十分か | 別 thread / 別マシン再開 |
+| execution host routing | 2台以上へ展開した際に、Symphony の required labels 等だけで重複実行なく担当 host を固定できるか | 複数 host 運用 |
+| routing label / state 規則 | GO、running、blocked、review、再開を最小の label / Issue state でどう表現するか | GitHub 運用 |
+| GitHub credential | Symphony GitHub adapter / provider-native tool に必要な最小権限 | セキュリティ |
+| Human Gate 再開 | blocked 時に routing を停止し、人間回答後に安全に continuation できるか | continuation |
+| thread 継続 | 同一 Task の continuation で thread をどこまで再利用できるか | token / context 効率 |
+| Execution Packet の具体形式 | Issue body の Markdown で十分か、machine-readable block が必要か | Task受渡し |
+| Execution Result の具体形式 | Issue comment / PR body のどこまでを定型化するか | 結果取り込み |
+| checkpoint 保存形式 | Issue comment、PR、repository artifact のどれが最小か | 再開・引継ぎ |
+| usage telemetry | Codex App Server / Symphony が安定して提供する token / rate-limit 項目 | 可観測性 |
+| ChatGPT Skill の必要性 | Plan分割、GO、Issue一括作成、Result取り込みをSkill化すると十分な再現性が得られるか | ChatGPT側UX |
+| upstream Symphony 追従 | stable releaseをどの単位で固定し、更新時に何を再検証するか | 保守 |
+
+## V1 外として保留する事項
+
+以下は未確定ではなく、V1 では実装しない。
+
+- Issue を使わない lightweight Task の直接実行経路
+- ChatGPT への自動 push / 既存 Chat への直接書込み
+- 独自 notification daemon / webhook relay
+- 自動負荷最適化 / 自動再配分
+- quota-aware scheduling
+- 独自 Runner / DB / scheduler
+- Symphony fork
+- multi-agent / multi-provider / multi-tenant
