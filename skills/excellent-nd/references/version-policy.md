@@ -1,41 +1,41 @@
 # Version policy
 
-Maintain two conceptual channels.
+version運用は2系統に分ける。
 
-## Validated stable channel
+## Validated stable
 
-Use an exact, tested version set for normal work:
+通常作業では、次の動作確認済みversion setを固定して使う。
 
-- Symphony exact release/version
-- Codex CLI/App Server exact version when practical
-- WORKFLOW/config revision
+- Symphony exact release / version
+- Codex CLI / App Server exact version（固定可能な範囲）
+- WORKFLOW / config revision
 - Excellent-Nd Skill revision
 
-Do not automatically upgrade simply because a newer stable release exists.
+より新しいstable releaseが存在しても、自動upgradeしない。
 
-Promote a new set only after validation.
+検証完了後にのみ新しいsetへ昇格する。
 
-## Development channel
+## Development
 
-Allow a separate development profile to evaluate newer stable releases, nightly builds, or development versions without changing the validated stable profile.
+validated stableとは別に、新しいstable release、nightly、development versionを評価するprofileを持ってよい。
 
-Do not use an unvalidated development profile for important work.
+未検証のdevelopment profileを重要な実作業に使わない。
 
 ## Upgrade validation
 
-For an optional upgrade, run the relevant regression subset based on changed components.
+任意upgradeでは、変更componentに応じた回帰テストを行う。
 
-For a forced/mandatory upgrade, run the full V1 regression suite before promoting it to the validated stable channel. The full suite should include:
+強制/必須upgradeでは、validated stableへ昇格する前にV1全回帰テストを行う。
 
-1. single Task end-to-end;
-2. multiple Task parallel execution;
-3. fixed execution-target routing;
-4. same-Task continuation;
-5. blocked → human decision → continuation;
-6. PR creation/update and review state;
-7. result import back into ChatGPT;
-8. Issue machine-readable schema compatibility;
-9. account usage/rate-limit handling;
-10. process restart/recovery behavior.
+1. single Task end-to-end
+2. multiple Task parallel execution
+3. fixed execution-target routing
+4. same-Task continuation
+5. blocked → human decision → continuation
+6. PR作成/更新とreview state
+7. ChatGPTへのResult取り込み
+8. Issue machine-readable schema互換性
+9. account usage / rate-limit handling
+10. process restart / recovery
 
-After validation, promote the exact tested version set. Keep the prior validated set available for rollback when possible.
+合格後に、実際に検証したexact version setをvalidated stableへ昇格する。可能なら旧validated setをrollback候補として保持する。
