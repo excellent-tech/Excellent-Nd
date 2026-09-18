@@ -4,31 +4,38 @@ V1 の基本構成は次で固定する。
 
 > ChatGPT → Plan / Task分割 / Human GO → GitHub Issues → Symphony → Codex → GitHub Result → 人間の明示的な取り込み → ChatGPT
 
-以下だけを PoC で確定する。
+## 確定した設計判断
+
+- 1 Issue = 1 execution target とし、Issue lifetime 中は host を固定する。
+- host 移行は同じ Issue の書換えではなく、checkpoint を持つ後継 Issue を作成する。
+- active workflow state は 実行予定 / 処理中 / 保留 / レビュー とする。
+- blocked は人間回答後に同じ Task を continuation する。
+- 同一 Task は原則同一 Codex thread を再利用する。明示分割、context 限界、resume 不能、host 移行時は新 thread へ引き継ぐ。
+- Issue body は人間向け Markdown + Codex 向け machine-readable JSON block とする。
+- checkpoint は Issue Workpad + branch / commit + PR を基本とする。
+- 数時間・週次 usage limit は短周期 retry 対象にせず、reset 後の安全な既存再開手段または人間の再開指示を利用する。
+- ChatGPT 共通 workflow は `skills/excellent-nd/` で管理する。
+- version は validated stable / development を分離し、stable は latest へ自動追従しない。強制更新は V1 全回帰テストを必須とする。
+
+## PoC で残る未確定事項
 
 | 未確定事項 | 確認すること | 判断結果が影響する範囲 |
 | --- | --- | --- |
-| execution host routing | 2台以上へ展開した際に、Symphony の required labels 等だけで重複実行なく担当 host を固定できるか | 複数 host 運用 |
-| routing label / state 規則 | GO、running、blocked、review、再開を最小の label / Issue state でどう表現するか | GitHub 運用 |
-| GitHub credential | Symphony GitHub adapter / provider-native tool に必要な最小権限 | セキュリティ |
-| Human Gate 再開 | blocked 時に routing を停止し、人間回答後に安全に continuation できるか | continuation |
-| thread 継続 | 同一 Task の continuation で thread をどこまで再利用できるか | token / context 効率 |
-| Execution Packet の具体形式 | Issue body の Markdown で十分か、machine-readable block が必要か | Task受渡し |
-| Execution Result の具体形式 | Issue comment / PR body のどこまでを定型化するか | 結果取り込み |
-| checkpoint 保存形式 | Issue comment、PR、repository artifact のどれが最小か | 再開・引継ぎ |
-| usage telemetry | Codex App Server / Symphony が安定して提供する token / rate-limit 項目 | 可観測性 |
-| ChatGPT Skill の必要性 | Plan分割、GO、Issue一括作成、Result取り込みをSkill化すると十分な再現性が得られるか | ChatGPT側UX |
-| upstream Symphony 追従 | stable releaseをどの単位で固定し、更新時に何を再検証するか | 保守 |
+| GitHub credential | GitHub adapter / provider-native tool が Issue、comment、branch、PR に必要とする実測最小権限 | セキュリティ |
+| multi-host routing | required labels の組合せだけで複数 Symphony instance の重複取得を確実に避けられるか | 複数 host 運用 |
+| worker境界を越えた thread continuation | worker終了・process restart 後も同一 Task thread をどこまで resume できるか | context / token 効率 |
+| long-window usage-limit resume | rate-limit reset timestamp を利用して、独自 scheduler なしで安全に数時間〜週次枠後の自動再開ができるか | 自動再開 |
+| Human Gate 実装 | control label を外す / 戻す運用で running agent の停止と continuation が安定するか | 保留 / 再開 |
+| Result workpad format | Issue Workpad / PR body の最小定型で人とAI双方が十分に状態把握できるか | 結果取り込み |
+| version compatibility | Symphony / Codex / WORKFLOW / Skill の組合せをどこまで version set として固定する必要があるか | 保守 |
 
 ## V1 外として保留する事項
-
-以下は未確定ではなく、V1 では実装しない。
 
 - Issue を使わない lightweight Task の直接実行経路
 - ChatGPT への自動 push / 既存 Chat への直接書込み
 - 独自 notification daemon / webhook relay
 - 自動負荷最適化 / 自動再配分
-- quota-aware scheduling
+- 独自 quota-aware scheduler
 - 独自 Runner / DB / scheduler
 - Symphony fork
 - multi-agent / multi-provider / multi-tenant
