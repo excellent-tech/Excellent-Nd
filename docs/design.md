@@ -4,187 +4,299 @@
 
 ## 背景と課題
 
-ChatGPT 上の相談は、要求を絞り、選択肢を比較し、実装前に人間が判断する場として扱いやすい。一方、その思考過程をすべて Issue にすると、小規模開発では記録の作成と同期が実作業より重くなりうる。また、会話全文や実行ログ全文を ChatGPT と Codex の間で往復させると、不要な文脈、トークン消費、再解釈の誤差が増える。
+ChatGPT 上の相談は、要求整理、選択肢比較、Plan 作成、人間判断を一つの会話文脈で進めやすい。一方、小人数開発で人間がすべての作業を手作業で Issue 化・更新すると、管理自体が負担になりうる。
 
-必要なのは新しいプロジェクト管理基盤ではなく、承認済みの作業単位と結果だけを会話と実行環境の間で受け渡す細い境界である。
+Excellent-Nd は、人間に Issue 管理を強いるのではなく、ChatGPT を主 UI としながら、実行時の Durable Task は GitHub Issue と Symphony に委ねる。
+
+V1 では「Issue を使わない実行経路」を新たに作らない。人間から見た UX は Conversation-first、内部実行は Issue-first とすることで、独自 Runner や独自状態管理を増やさずに成立するかを検証する。
 
 ## 目的
 
-Excellent-Nd は、ChatGPT で作った Plan から人間が GO を出した 1 Task を Codex に渡し、実装・調査・検証の結果を構造化して ChatGPT に戻す Conversation-first / Plan-and-Execute ワークフローを実現する。
+Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を切り出し、人間の GO 後に担当・依存関係・おおよその負荷配分を反映して GitHub Issue 化し、Symphony / Codex で実行する。
+
+実行結果は GitHub に永続化し、人間が元の ChatGPT 会話で「結果を取り込んで」「状況を確認して」等と明示したときに、ChatGPT が各 Task の結果を取得して元 Plan へ再統合する。
 
 ## 設計原則
 
-1. ChatGPT を要求整理、Plan、GO、結果確認、次の判断の主 UI とする。
-2. 人間の GO 前に実行しない。
-3. 全会話ではなく、実行に必要な最小の Execution Packet を渡す。
-4. 生ログではなく、機械情報と短い要約からなる Execution Result を戻す。
-5. GitHub Issue は必要な Task にだけ使う。
-6. Symphony と Codex が持つ orchestration / execution 能力を再実装しない。
-7. Git と checkpoint を引継ぎ可能な状態とし、Codex 会話全文を永続状態にしない。
-8. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
+1. ChatGPT を要求整理、Plan、担当分割、GO、結果確認、次の判断の主 UI とする。
+2. Human GO 前に実行しない。
+3. 1 ChatGPT Chat は 1 つの計画・判断コンテキストとして扱い、そこから 1 件以上の Task に分岐できる。
+4. 実行コンテキストは Task 単位とし、原則として 1 Task = 1 Codex thread とする。
+5. 同じ Task の追加修正、test failure 修正、review 対応は同一 thread の継続を優先する。
+6. V1 の実行 Task は GitHub Issue として Durable 化し、Symphony の Issue-first orchestration を利用する。
+7. 全会話ではなく、Task ごとに必要な Execution Packet のみを実行側へ渡す。
+8. Codex の生ログ全文ではなく、Git / test / diff 等の機械情報と短い要約からなる Execution Result を戻す。
+9. GitHub 操作は ChatGPT の公式連携と Symphony の既存 integration を優先する。
+10. Symphony と Codex が持つ scheduler / runner / workspace / retry / thread 管理を再実装しない。
+11. ChatGPT への自動 push は V1 では行わず、人間の明示的な結果取り込みを基本とする。
+12. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
 
-## Conversation-first と Issue-first
+## V1 の全体モデル
 
-| 観点 | Conversation-first（Excellent-Nd） | Issue-first（Symphony） |
-| --- | --- | --- |
-| 開始点 | ChatGPT 上の相談と Plan | tracker の実行可能な Issue |
-| Task 化 | GO 後、必要な 1 Task のみ | Issue が実行単位 |
-| 永続化 | 必要に応じ Git / checkpoint / Issue | tracker と Issue workspace |
-| 適する作業 | 短時間の調査・単独作業を含む | 共有・長期・自律継続する作業 |
-
-両者は競合しない。Durable Task は Issue 化して Symphony に渡し、lightweight Task は Issue を必須にしない。後者の実行方法は V1 着手前に検証する。
-
-## 責務分離
-
-### Symphony 公式仕様で確認できる責務
-
-[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) から、次を確認した。
-
-- Symphony は tracker を継続的に読み、Issue ごとの隔離 workspace で coding agent session を実行する scheduler / runner である。
-- `WORKFLOW.md` を設定と prompt の契約として使い、polling、bounded concurrency、retry、reconciliation、workspace lifecycle、observability を扱う。
-- Codex App Server を起動し、thread / turn を作成または継続する。同じ worker run 内の continuation turn は同じ thread を再利用する。
-- runtime event は session、turn、エラー、必要入力、任意の usage 情報などを上流へ通知できる。
-- tracker への書込みは、通常、Symphony 自身の業務ロジックではなく coding agent と provider-native tool が担う。
-- 仕様は Draft v1 である。公式 Elixir 実装は評価用 prototype であり、production-ready とは扱えない。
-
-### Excellent-Nd の設計判断
-
-Excellent-Nd は次だけを担当する。
-
-- ChatGPT 上の Plan と Human GO から、実行対象となる 1 Task を切り出す。
-- Task を Execution Packet に圧縮する。
-- lightweight Task と Durable Task のどちらとして扱うか、人間が判断できる基準を示す。
-- Symphony または直接の Codex 実行へ Task を受け渡す最小経路を定める。
-- 実行結果を Execution Result と checkpoint に整理し、ChatGPT から確認可能にする。
-- Human Gate で止まった事項を人間へ戻し、同じ Task を継続可能にする。
-
-Excellent-Nd は Symphony の scheduler、runner、tracker polling、workspace manager、retry、concurrency、Codex App Server client、thread / turn 管理、telemetry 収集を複製しない。
-
-### 各サービスの役割
-
-| 要素 | 役割 |
-| --- | --- |
-| Human | GO、仕様判断、リスク受容、Human Gate の回答 |
-| ChatGPT | 要求整理、Plan、Task 切出し支援、結果提示、次の判断支援 |
-| Excellent-Nd | Execution Packet / Result の境界と、最小限の受渡し workflow |
-| GitHub | 必要な Issue・PR・永続的な共有履歴。常時必須ではない |
-| Symphony | Durable Task の Issue-first orchestration と実行観測 |
-| Codex | 対象開発環境での実装、調査、検証 |
-| Git | source、branch、commit、diff の正本 |
-
-GitHub 操作には、利用可能なら ChatGPT の公式 GitHub 連携を優先する。Excellent-Nd 独自の GitHub API client は、公式連携と Symphony の tracker integration で不足が確認されるまで作らない。
-
-## 基本フロー
-
-```mermaid
-sequenceDiagram
-    actor H as Human
-    participant C as ChatGPT
-    participant E as Excellent-Nd workflow
-    participant S as Symphony / Codex
-    participant G as GitHub (必要時)
-
-    H->>C: 要求・課題を相談
-    C->>H: Plan
-    H->>C: GO
-    C->>E: 1 Task + Execution Packet
-    alt Durable Task
-        E->>G: Issue を作成・参照
-        S->>G: Issue を polling
-        G-->>S: 実行対象 Issue
-    else lightweight Task
-        E->>S: 最小実行経路（要検証）
-    end
-    S-->>E: 実行結果 / runtime facts
-    E->>E: Execution Result / checkpoint に整理
-    E-->>C: 構造化結果
-    C-->>H: 結果、blocked、次の判断
+```text
+Human
+  ↓
+ChatGPT Chat
+  - 要求整理
+  - Plan
+  - Task分割
+  - 担当 / 負荷配分
+  - Human GO
+  ↓
+GitHub Issues
+  - Plan参照
+  - Task参照
+  - 担当
+  - routing
+  - Execution Packet
+  ↓
+Symphony
+  ↓
+Codex thread per Task
+  ↓
+Git / Test / PR / Issue Result
+  ↓
+GitHub
+  ↓
+Human: 「結果を取り込んで」
+  ↓
+ChatGPT
+  - 複数TaskのResult取得
+  - 元Planへ再統合
+  - 次の判断
 ```
 
-## Task の種類
+## Chat / Plan / Task / Codex thread の関係
 
-### lightweight Task
+### ChatGPT Chat
 
-- ChatGPT 上の Plan から生成する。
-- GitHub Issue を必須にしない。
-- 短時間、単独、引継ぎ不要で、永続的な監査記録を要しない作業に使う。
-- V1 で自動判定しない。
+人間との計画・判断の文脈である。1 Chat 内で複数 Task を扱ってよい。
 
-### Durable Task
+### Plan
 
-- GitHub Issue として作成するか、既存の GitHub Issue に関連付ける。
-- 複数人での共有、別担当への引継ぎ、長期作業、Human Gate、PR との明示的な関連、履歴・判断根拠の保存が必要な場合に使う。
-- Symphony の Issue-first execution が適する場合に選ぶ。
+Chat 内で合意した作業計画である。必要に応じ複数 Task に分割する。
 
-昇格は一方向に固定しないが、Task の途中で上記条件が生じた場合は、checkpoint と参照を添えて Issue 化できる設計を目指す。自動 routing は V1 非対象である。
+V1 では Plan を独立 DB に保存しない。元 Chat と、GitHub Issue に記録する Plan 参照で相関できればよい。
+
+### Task
+
+Codex に渡す独立した実行目的である。
+
+1 つの Plan から 1..N Task を生成できる。
+
+例:
+
+```text
+Plan P-001
+├─ T-001: 担当A
+├─ T-002: 担当A
+├─ T-003: 担当B
+└─ T-004: 担当B
+```
+
+### Codex thread
+
+Task を実行する AI 文脈である。
+
+- 原則: 1 Task = 1 thread
+- 同一 Task の継続: 同一 thread を優先
+- 別 Task: 別 thread
+- thread を再利用できない場合: Git + checkpoint から新規 thread で再開
+
+Chat ID と Codex thread ID を 1:1 で固定しない。
+
+## 複数 Task と担当配分
+
+V1 では、ユーザーが 1 つの Plan 内で複数 Task の一括実行を指示できる。
+
+例:
+
+> Task 1〜10 を担当Aと担当Bに、おおよそ 3:7 の負荷で分けて進める。
+
+ChatGPT は次を考慮して Task を割り当てる。
+
+- 想定作業量
+- Task 間の依存関係
+- 並列実行可否
+- ユーザーが指定した担当
+- ユーザーが指定した概算負荷比率
+
+3:7 等の比率は Task 件数の厳密比率ではなく、**おおよその総作業負荷**として解釈する。
+
+V1 では高度な最適化 scheduler は作らない。ChatGPT が合理的な割当案を作り、人間が GO することで確定する。
+
+## Human GO と一括 Issue 作成
+
+Human GO 後、ChatGPT は実行対象 Task ごとに GitHub Issue を作成または更新する。
+
+Issue には最低限、次を相関可能な形で記録する。
+
+- Plan reference
+- Task reference
+- assignee / owner
+- execution target / routing information
+- objective
+- constraints
+- acceptance criteria
+- relevant decisions
+- relevant references
+- dependencies
+
+V1 では専用 DB を作らない。
+
+## 実行 host と routing
+
+V1 はまず 1 台の実行 host で end-to-end を検証し、安定後に同一 profile を 2 台目へ展開できる構成を目指す。
+
+複数 host を使う場合、人間の責任者である `assignee` と、実際に Codex を動かす `execution target` を分離して扱う。
+
+Symphony の `required_labels` 等、既存機能で Task を対象 host へ振り分けられる範囲を優先し、独自 scheduler は追加しない。
+
+具体的な label 名や host routing 規則は PoC で確定する。
+
+## Symphony の責務
+
+[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) から、V1 では次を Symphony に委ねる。
+
+- Issue tracker polling
+- dispatch / claim
+- per-Issue workspace
+- Codex App Server 起動
+- thread / turn 管理
+- continuation
+- retry / backoff
+- concurrency
+- reconciliation
+- runtime observability
+- 取得可能な usage / rate-limit telemetry
+- tracker integration
+
+Excellent-Nd はこれらを複製しない。
+
+## Codex App Server
+
+Codex App Server は Symphony 固有機能ではなく、Codex を外部プログラムから制御するための公式インターフェースである。
+
+Symphony は Codex App Server を利用して Task ごとの coding session を管理する。
+
+Excellent-Nd は Codex App Server client を独自実装しない。
 
 ## Execution Packet
 
-Codex には会話全文ではなく、最低限次を渡す。
+会話全文ではなく、Task ごとに最低限次を渡す。
 
 | 項目 | 内容 |
 | --- | --- |
-| `objective` | この Task で達成する 1 つの目的 |
+| `plan_ref` | 元 Plan を識別する参照 |
+| `task_ref` | Task を識別する参照 |
+| `owner` | 人間側の担当 |
+| `objective` | この Task で達成する目的 |
 | `constraints` | 禁止事項、範囲、互換性、安全条件 |
-| `acceptance_criteria` | 完了を判定できる条件 |
-| `relevant_decisions` | 実行に影響する確定済み判断のみ |
-| `relevant_references` | 対象 Issue、文書、ファイル、commit 等 |
+| `acceptance_criteria` | 完了条件 |
+| `relevant_decisions` | 実行に影響する確定済み判断 |
+| `relevant_references` | Issue、文書、ファイル、commit 等 |
+| `dependencies` | 先行 Task 等の依存関係 |
 
-Packet の schema、保存形式、transport は未確定である。V1 では上記意味を満たす最小形式を検証する。
+V1 では GitHub Issue body を最初の実体候補とし、専用 transport / DB を前提にしない。
 
 ## Execution Result
 
-ChatGPT へは全文ログではなく、次を基本に返す。
+Codex / Symphony の結果は GitHub Issue / PR 等へ永続化し、ChatGPT は人間の明示的な取り込み指示時に取得する。
+
+最低限次を扱う。
 
 | 項目 | 内容 |
 | --- | --- |
-| `status` | 完了、blocked、失敗などの結果 |
-| `summary` | 人間が判断するための短い要約 |
-| `changed_files` | 変更ファイル一覧 |
-| `diff_summary` | 機械的 diff 統計と主要変更 |
-| `verification` | 実行した test / check、exit status、結果 |
-| `risks` | 既知の影響や不確実性 |
+| `plan_ref` | 元 Plan の参照 |
+| `task_ref` | Task の参照 |
+| `status` | completed / blocked / failed 等 |
+| `summary` | 人間判断用の短い要約 |
+| `changed_files` | 変更ファイル |
+| `diff_summary` | diff 統計・主要変更 |
+| `verification` | test / check / exit status |
+| `risks` | 既知リスク |
 | `blockers` | 人間判断または外部条件待ち |
-| `remaining_work` | 未完了の範囲 |
+| `remaining_work` | 未完了範囲 |
+| `references` | commit / PR / Issue 等 |
 
-ファイル一覧、diff 統計、test 結果、exit status、token / rate-limit telemetry など取得可能な事実は、LLM に再生成させず元データから構造化する。LLM は要約と判断支援に使う。
+Git、test、diff、exit status 等の機械情報は、可能な限り元データを利用し、LLM に再生成させない。
 
-## Codex thread と checkpoint
+## 結果の元 Chat への取り込み
 
-- 同じ Task の追加修正、test failure 修正、review 対応は、利用可能なら同一 thread を継続する。
-- 別 Task は新規 thread を基本とする。
-- 別マシンへの引継ぎは thread の移送に依存しない。
-- Git は source、branch、commit、diff を保持する。
-- checkpoint は objective、decisions、completed work、remaining work、verification、risks / blockers を保持する。
+V1 では自動 push を行わない。
 
-会話履歴は補助的な実行文脈であり、復旧に必要な永続状態ではない。Symphony 公式仕様が保証する同一 thread の継続範囲と、Excellent-Nd が望む Task 単位の継続範囲が一致するかは検証する。
+人間が元 Chat で次のように指示する。
+
+- 「結果を取り込んで」
+- 「進行中 Task の状況を確認して」
+- 「担当Aと担当Bの結果をまとめて」
+
+ChatGPT は GitHub から Plan に紐づく各 Task / PR / verification を取得し、元 Plan の文脈へ再統合する。
+
+この一操作で十分な間は、既存 Chat への自動書込み IF や独自 notification infrastructure を作らない。
 
 ## Human Gate
 
-V1 では approval engine を作らない。要求の曖昧さ、public API、DB migration、security-sensitive な変更、production 影響、大きな dependency 更新、重大な破壊的変更などで人間判断が必要なら、次の流れにする。
+人間判断が必要になった Task は GitHub 上に blocked 状態と質問を残す。
+
+例:
 
 ```text
-Codex → blocked / question → ChatGPT → Human decision → continuation
+Task → blocked
+     → GitHubに質問・根拠を保存
+     → 人間がChatGPTで状況取得
+     → 人間が判断
+     → ChatGPTが判断結果をGitHubへ反映
+     → Task continuation
 ```
 
-Durable Task では Issue comment / label 等を判断の永続記録に使える。Symphony の approval / user-input policy は実装定義であり、Elixir prototype の blocked 状態は memory 上の状態であるため、再開方法と永続化は事前検証する。
+V1 では複雑な approval engine を作らない。
+
+## checkpoint
+
+Git は source、branch、commit、diff を保持する。
+
+checkpoint は次を保持する。
+
+- objective
+- decisions
+- completed work
+- remaining work
+- verification
+- risks / blockers
+
+Codex 会話全文を復旧の正本にしない。
 
 ## トークン削減
 
-- Plan 全体から 1 Task に必要な決定だけを Packet へ入れる。
-- 同じ情報を会話、Issue、prompt に重複させない。
-- continuation では変更点と残作業を中心にし、元 prompt を無条件に再送しない。
-- Git、test、diff、exit status、usage は可能な限り機械データのまま扱う。
-- ChatGPT には判断に必要な要約を示し、詳細ログは参照可能な場所に残す。
+- Chat 全履歴を Task prompt にしない。
+- Plan から各 Task に必要な情報だけ Execution Packet に切り出す。
+- Task A の情報を Task B に不要なら渡さない。
+- Codex の全イベント / ログを ChatGPT へ戻さない。
+- Result は構造化し、人間の判断に必要な内容だけ ChatGPT で表示する。
+- Git / test / diff / exit status 等は機械データを利用する。
+- 同一 Task の continuation では thread 継続を優先する。
 
-## V1 で再実装しない領域
+## V1 で扱わない領域
 
-- Symphony 自体、Codex Runner、agent harness
-- scheduler、retry、concurrency、workspace manager、thread / turn 管理
-- multi-agent orchestration、複数 AI provider
-- SaaS、multi-tenant、大規模チーム scheduler
-- 複数 tracker の統合、独自 Kanban、大型 Web UI、中央 DB
+- Issue を使わない lightweight Task の直接実行経路
+- lightweight / Durable Task の自動分類
+- 自動 Task routing 最適化
+- 担当者能力や過去実績に基づく自動配分
+- リアルタイム負荷再配分
+- quota / token 残量を使った自動 scheduling
+- ChatGPT への自動 push / 既存 Chat への外部書込み
 - 独自 notification daemon / webhook relay
+- Symphony fork / 再実装
+- 独自 Codex Runner / Codex App Server client
+- 独自 scheduler / retry / workspace manager
+- 独自 DB / SQLite
+- 独自 GitHub API client
+- 独自 Kanban / 大型 Web UI
+- multi-agent orchestration
+- 複数 AI provider
+- 複数 tracker
+- SaaS / multi-tenant
 - 汎用 workflow engine
 
-将来候補は、実運用で不足を確認してから検討する。V1 の予定としては扱わない。
+将来候補は実運用で不足が確認された場合のみ再検討する。
