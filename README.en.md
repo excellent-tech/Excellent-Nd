@@ -1,47 +1,68 @@
 # Excellent-Nd
 
-Excellent-Nd is a project built around [OpenAI Symphony](https://github.com/openai/symphony). It aims to provide a conversation-first, ChatGPT-first Plan-and-Execute workflow that sends only the necessary work from a ChatGPT plan to Codex.
+Excellent-Nd is a project built around [OpenAI Symphony](https://github.com/openai/symphony). It aims to provide a conversation-first, ChatGPT-first Plan-and-Execute workflow that turns only approved work from a ChatGPT Plan into executable Tasks for Codex.
 
-> The project is at an early stage. We are organizing the public design and validating the V1 execution path; no usable implementation is available yet.
+> The project is at an early stage. We are organizing the public design and validating the V1 end-to-end execution path; no usable implementation is available yet.
 
 [日本語](README.md) | [简体中文](README.zh-CN.md)
 
 ## Problem to solve
 
-For small teams and near-individual development, turning every discussion, investigation, and small task into an issue can make task management a burden of its own. Passing an entire conversation history to an execution agent also adds irrelevant context and token usage.
+In small teams and near-individual development, the same people often handle requirements, planning, task assignment, implementation, and verification. Manually creating and maintaining an Issue for every small task can itself become management overhead.
 
-Excellent-Nd uses ChatGPT as the primary UI for refining requirements, planning, and decisions. Only work approved by a human is packaged as a small Task. Codex receives the objective, constraints, acceptance criteria, relevant decisions, and references. ChatGPT receives structured information such as changes, verification, risks, and remaining work.
+Excellent-Nd uses ChatGPT as the primary UI for requirements, planning, task assignment, Human GO, and result review. After Human GO, executable Tasks are persisted as GitHub Issues and handed to Symphony / Codex. Humans do not need to treat Issue management as the primary UI; they pull only the results they need back into ChatGPT.
+
+Instead of passing the full chat history to Codex, each Task carries a compact Execution Packet containing its objective, constraints, acceptance criteria, relevant decisions, and references. Results are also kept structured rather than returning the full Codex log.
 
 ## Basic flow
 
 ```text
-Human + ChatGPT: clarify requirements → Plan → Human GO
-                                               ↓
-Excellent-Nd workflow:                  prepare 1 Task
-                                               ↓
-Execution:
-  ├─ Durable Task → Symphony → Codex
-  └─ lightweight Task → execution path TBD → Codex
-                                               ↓
-ChatGPT + Human:              review Result → next decision
+Human + ChatGPT
+  requirements → Plan → task split / assignment → Human GO
+                                           ↓
+GitHub Issues
+  Execution Packet / routing per Task
+                                           ↓
+Symphony
+                                           ↓
+Codex thread per Task
+                                           ↓
+Git / Test / PR / Issue Result
+                                           ↓
+Human: "Pull in the results"
+                                           ↓
+ChatGPT + Human
+  review multiple Task results → merge back into Plan → next decision
 ```
 
-We call this Conversation-first / Plan-and-Execute. Not every thought becomes an issue: short, single-person work can remain a lightweight Task, while work requiring sharing, handoff, long-lived history, or a Human Gate becomes a Durable Task backed by a GitHub Issue. V1 will not automate this classification.
+One ChatGPT conversation may produce one or more Tasks. In single-person work, 1 Chat → 1 Task will be common. In multi-person work, 1 Chat may branch into multiple Tasks and multiple Codex threads.
+
+V1 also supports rough workload allocation such as “split Tasks 1–10 between owner A and owner B at roughly 30:70.” The ratio is treated as approximate total workload, not a strict count of Tasks, and considers dependencies, parallelizability, and estimated effort.
 
 ## Relationship with Symphony
 
-Symphony provides a specification and reference implementation for orchestration that monitors an issue tracker and runs Codex App Server in a per-issue workspace. Excellent-Nd will not reimplement its execution management, workspace handling, retries, concurrency, thread / turn management, or execution telemetry.
+Symphony provides a specification and reference implementation for Issue-first orchestration: it monitors an issue tracker and runs Codex App Server inside a per-Issue workspace.
 
-Durable Tasks use Symphony's Issue-first execution. Excellent-Nd focuses on extracting only the information required for execution from a ChatGPT Plan and returning the result to the conversation. The minimum execution path for a lightweight Task without an issue is undecided and must be validated before V1 implementation.
+Excellent-Nd does not reimplement Symphony's:
+
+- issue polling / dispatch
+- workspace management
+- retry / concurrency
+- Codex App Server launch
+- thread / turn management
+- continuation
+- execution telemetry
+
+In V1, executable Tasks are persisted as GitHub Issues and run through Symphony's Issue-first execution.
+
+This means the human-facing UX is conversation-first while the internal execution model is issue-first.
 
 ## V1 scope
 
-V1 focuses on one path:
+V1 focuses on this path:
 
-> Create a Plan in ChatGPT → Human GO → send 1 Task to Codex → execute → review a structured Result in ChatGPT
+> Create a Plan in ChatGPT → split it into 1..N Tasks and assign owners → Human GO → create one GitHub Issue per Task → execute through Symphony / Codex → persist results in GitHub → human asks ChatGPT to pull in the results → ChatGPT merges them back into the original Plan
 
-ChatGPT is the primary UI; a Git-managed development environment that can run Codex is the execution target; Symphony is the Issue-first orchestration foundation; and GitHub is used for Issues, PRs, and shared history when needed.
-
-A custom Codex Runner, custom agent harness, custom Kanban, large Web UI, central database, notification infrastructure, multi-agent orchestration, multiple AI providers, SaaS, multi-tenancy, and a general-purpose workflow engine are outside V1.
+V1 does not implement custom push notifications into ChatGPT, a custom Codex Runner, custom database, custom scheduler, custom Kanban, large Web UI, multi-agent orchestration, multiple AI providers, SaaS, or multi-tenancy.
 
 See [Design](docs/design.md), [V1 Scope](docs/v1-scope.md), and [Open Questions](docs/open-questions.md). The Japanese documents are authoritative for design and specification decisions.
