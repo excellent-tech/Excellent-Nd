@@ -66,3 +66,8 @@ V1 の中心は次の経路です。
 V1 では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、独自 scheduler、独自 Kanban、大型 Web UI、multi-agent、複数 AI provider、SaaS、multi-tenant 等は実装しません。
 
 詳細は [設計](docs/design.md)、[V1 スコープ](docs/v1-scope.md)、[未確定事項](docs/open-questions.md) を参照してください。日本語資料を設計・仕様の正本とします。
+
+
+## ChatGPT Skill
+
+Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、Human GO、Issue 作成、machine-readable Task schema、結果取り込み、Human Gate 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
