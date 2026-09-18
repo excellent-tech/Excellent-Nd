@@ -23,13 +23,14 @@ Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を�
 3. 1 ChatGPT Chat は 1 つの計画・判断コンテキストとして扱い、そこから 1 件以上の Task に分岐できる。
 4. 実行コンテキストは Task 単位とし、原則として 1 Task = 1 Codex thread とする。
 5. 同じ Task の追加修正、test failure 修正、review 対応は同一 thread の継続を優先する。
-6. V1 の実行 Task は GitHub Issue として Durable 化し、Symphony の Issue-first orchestration を利用する。
+6. V1 の通常実行 Task は GitHub Issue として Durable 化し、Symphony の Issue-first orchestration を利用する。
 7. 全会話ではなく、Task ごとに必要な Execution Packet のみを実行側へ渡す。
 8. Codex の生ログ全文ではなく、Git / test / diff 等の機械情報と短い要約からなる Execution Result を戻す。
 9. GitHub 操作は ChatGPT の公式連携と Symphony の既存 integration を優先する。
 10. Symphony と Codex が持つ scheduler / runner / workspace / retry / thread 管理を再実装しない。
 11. ChatGPT への自動 push は V1 では行わず、人間の明示的な結果取り込みを基本とする。
 12. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
+13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、Human GO とGitHub上の永続記録を維持した限定例外とする。
 
 ## V1 の全体モデル
 
@@ -87,7 +88,7 @@ Codex に渡す独立した実行目的である。
 例:
 
 ```text
-Plan P-001
+Plan P-20260918-a1b2c3
 ├─ T-001: 担当A
 ├─ T-002: 担当A
 ├─ T-003: 担当B
@@ -104,6 +105,8 @@ Task を実行する AI 文脈である。
 - thread を再利用できない場合: Git + checkpoint から新規 thread で再開
 
 Chat ID と Codex thread ID を 1:1 で固定しない。
+
+`plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に検索する。`task_ref` はPlan内で一意な `T-001` 形式とし、両者の組を相関keyにする。Durable TaskそのものはGitHub Issue URL / numberで識別し、元Planにもその参照を保存する。日付と短いrandom tokenにrepository内検索を組み合わせれば、中央ID基盤なしでV1の相関に十分である。
 
 ## 複数 Task と担当配分
 
@@ -144,6 +147,20 @@ Issue には最低限、次を相関可能な形で記録する。
 
 V1 では専用 DB を作らない。
 
+## Bootstrap prerequisite
+
+通常の実行経路は Human GO → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
+
+この循環依存を避けるため、runtime導入と最小E2E検証を行うbootstrap Taskだけは次の限定規約を使う。
+
+1. ChatGPT上でPlanとbootstrap Taskを作り、通常と同じHuman GOを得る。
+2. GitHub Issueにobjective、constraints、acceptance criteria、execution target、verification方法を永続化する。
+3. 人間が対象host上のCodex CLI等から、そのIssueを作業記録として明示的に開始する。
+4. Symphony / Codex / GitHub連携を検証し、実測したversion setとverification結果をIssueへ記録する。
+5. runtime検証後は通常のIssue-first / Symphony executionへ移行する。
+
+bootstrapは通常Taskのmanual execution経路ではない。2台目以降も既存のExcellent-Nd / Symphony経路でhost provisioningできない場合に限り同じ規約を使う。V1では自動provisioning機構を作らない。
+
 ## 実行 host と routing
 
 V1 はまず 1 台の execution host で end-to-end を検証し、安定後に 2 台目へ展開する。
@@ -156,7 +173,7 @@ Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中�
 
 ## Symphony の責務
 
-[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) から、V1 では次を Symphony に委ねる。
+[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) と同revisionの実装から、V1 では次を Symphony に委ねる。
 
 - Issue tracker polling
 - dispatch / claim
@@ -172,6 +189,8 @@ Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中�
 - tracker integration
 
 Excellent-Nd はこれらを複製しない。
+
+現行Elixir実装のGitHub Issues adapterはIssue bodyを `issue.description` に正規化し、workflow promptはこの値を参照できる。dispatchとcontinuationは、GitHub native state、adapterのdispatchability、設定された全 `required_labels` の一致を使って判定する。
 
 ## Codex App Server
 
@@ -197,7 +216,9 @@ Excellent-Nd は Codex App Server client を独自実装しない。
 | `relevant_references` | Issue、文書、ファイル、commit 等 |
 | `dependencies` | 先行 Task 等の依存関係 |
 
-V1 では GitHub Issue body を Execution Packet の実体とし、**人間向け Markdown と Codex 向け machine-readable JSON block を併記する**。JSON block の初期 schema は `skills/excellent-nd/references/task-schema.md` を正とし、専用 transport / DB は前提にしない。
+V1 では **GitHub Issue body全体をExecution Packet** とする。Objective、Constraints、Acceptance criteria、Relevant decisions / references等は人間が読めるMarkdownへ記録する。
+
+併記するJSON blockはExecution Packet全体でもCodex向け説明でもなく、Excellent-Ndが安定して扱う **Task control / correlation metadata** である。`plan_ref`、`task_ref`、owner、execution target、論理状態等だけを持ち、説明情報を重複コピーしない。初期schemaは `skills/excellent-nd/references/task-schema.md` を正とする。
 
 ## Execution Result
 
@@ -246,9 +267,11 @@ V1 の人間向け active state は次の 4 つとする。
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証後のレビュー待ち |
 
-GitHub native state の open / closed と、上記 workflow state は分離する。
+`workflow_status` はExcellent-Ndと人間向けの論理状態であり、JSON値だけを変更してもSymphonyの実行は制御されない。
 
-人間判断が必要になった Task は Issue Workpad に blocked 理由・根拠・質問を保存し、実行 control label 等を外して continuation を停止する。人間回答後は同じ Issue を実行予定へ戻し、原則として同じ Codex thread の continuation を試みる。
+Symphony execution controlの正本はGitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証前に固定しない。
+
+人間判断が必要になったTaskはIssue Workpadにblocked理由・根拠・質問を保存し、`workflow_status` を `blocked` に更新してexecution-control条件を外す。execution-target identityは変更しない。人間回答を保存した後、`workflow_status` を `scheduled` に戻してexecution controlを再度有効化し、原則として同じCodex threadのcontinuationを試みる。
 
 ```text
 Task → 保留
@@ -284,7 +307,7 @@ usage limit を検出した場合は Task を `blocked` / 保留として Issue 
 
 共通の ChatGPT 操作規約は `skills/excellent-nd/` で管理する。
 
-Skill は新しい通信 IF を提供するものではなく、Plan 分割、Human GO、Issue 作成、machine-readable schema、結果取り込み、Human Gate、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
+Skill は新しい通信 IF を提供するものではなく、Plan 分割、Human GO、Issue 作成、Task control / correlation metadata、結果取り込み、Human Gate、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
 
 組織・プロジェクト固有の host 名、credential、非公開運用ルールは public Skill に含めない。
 
@@ -296,7 +319,7 @@ validated stable は Symphony / Codex / WORKFLOW / Skill の動作確認済み v
 
 development は新しい stable / nightly / development version の検証専用とする。
 
-強制アップデート時は、single Task、multi Task、routing、continuation、Human Gate、PR、result import、machine-readable schema、usage limit、restart/recovery を含む V1 全回帰テストを通してから validated stable へ昇格する。
+強制アップデート時は、single Task、multi Task、routing、continuation、Human Gate、PR、result import、Task control / correlation metadata、usage limit、restart/recovery を含む V1 全回帰テストを通してから validated stable へ昇格する。
 
 詳細は `skills/excellent-nd/references/version-policy.md` を参照する。
 
@@ -313,6 +336,8 @@ development は新しい stable / nightly / development version の検証専用�
 ## V1 で扱わない領域
 
 - Issue を使わない lightweight Task の直接実行経路
+- bootstrap例外を一般化したmanual execution経路
+- execution hostの自動provisioning
 - lightweight / Durable Task の自動分類
 - 自動 Task routing 最適化
 - 担当者能力や過去実績に基づく自動配分

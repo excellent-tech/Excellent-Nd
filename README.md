@@ -63,6 +63,8 @@ V1 の中心は次の経路です。
 
 > ChatGPT で Plan を作成 → 1..N Task に分割・担当配分 → Human GO → Task ごとに GitHub Issue を作成 → Symphony / Codex で実行 → GitHub に結果を保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合する
 
+最初のexecution host、および既存経路からprovisioningできない後続hostでSymphony runtimeを導入するbootstrap Taskは限定例外です。Human GO後にGitHub Issueへ目的・受入条件・検証方法を記録し、人間が対象host上のCodex CLI等から明示的に開始します。実測version setと検証結果をIssueへ保存してruntime検証を終えた後は通常のIssue-first executionへ移行し、この例外を一般的なmanual executionへ拡大しません。
+
 V1 では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、独自 scheduler、独自 Kanban、大型 Web UI、multi-agent、複数 AI provider、SaaS、multi-tenant 等は実装しません。
 
 詳細は [設計](docs/design.md)、[V1 スコープ](docs/v1-scope.md)、[未確定事項](docs/open-questions.md) を参照してください。日本語資料を設計・仕様の正本とします。
@@ -70,6 +72,6 @@ V1 では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、�
 
 ## ChatGPT Skill
 
-Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、Human GO、Issue 作成、machine-readable Task schema、結果取り込み、Human Gate 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
+Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、Human GO、Issue 作成、Task control / correlation metadata、結果取り込み、Human Gate 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
 
 Skill のインストールは **ChatGPT 側の操作規約を有効化するだけ**です。Symphony / Codex の実行環境をインストール・設定したことや、V1 の end-to-end 実装・動作確認が完了したことを意味しません。V1 の実行には、別途 execution host 上の Symphony / Codex / GitHub 連携が必要です。

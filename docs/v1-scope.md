@@ -8,6 +8,8 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 
 > ChatGPT で Plan 作成 → Task 分割・担当配分 → Human GO → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
 
+この通常経路を成立させる前提として、Symphony未導入hostではHuman GO済みのbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
+
 新しい管理基盤を作るのではなく、既存の公式機能と OSS を組み合わせ、人間の管理作業と AI 間の不要な context 転送を減らすことが目的である。
 
 ## V1 対象
@@ -31,6 +33,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 
 - V1 で実行する Task は GitHub Issue として Durable 化する。
 - Task ごとに Plan reference / Task reference / owner / routing / Execution Packet を記録する。
+- `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>`、`task_ref` はPlan内で一意な `T-001` 形式を基本とし、GitHub Issue URL / numberをDurable Taskの実体参照にする。
 - GitHub 操作は ChatGPT の公式連携を優先する。
 - 専用 Task DB は作らない。
 
@@ -41,6 +44,15 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 - 原則 1 Task = 1 Codex thread。
 - 同じ Task の修正・review対応は同一 thread 継続を優先する。
 - 複数 Task は独立 thread で並列実行可能とする。
+
+### Bootstrap prerequisite
+
+- 最初のexecution hostへのSymphony runtime導入は、通常Taskの前提を作るbootstrap Taskとして区別する。
+- Human GO前には開始せず、目的、acceptance criteria、verification結果をGitHub Issueへ永続化する。
+- Symphony未導入の間だけ、人間が対象host上のCodex CLI等から明示的に開始できる。
+- runtime検証後は通常のIssue-first / Symphony executionへ移行する。
+- 2台目以降も既存経路でprovisioningできないhostに限り同じ規約を使う。
+- bootstrap例外を一般的なmanual executionへ拡大せず、自動provisioning機構も作らない。
 
 ### 複数実行 host
 
@@ -59,11 +71,11 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 - 保留 / `blocked`
 - レビュー / `review`
 
-表示状態と Symphony の実行 control / routing label は分離する。
+`workflow_status` は人間向け論理状態であり、Symphony実行制御の正本ではない。GitHub native state、adapterのdispatchability、profileのrouting / execution-control labelを実行制御の正本とする。blocked時は論理状態とcontrol条件の両方を更新し、execution-target identityは維持する。
 
 ### Execution Packet
 
-Issue body には人間向け説明と Codex 向け machine-readable JSON block を併記する。
+Execution PacketはGitHub Issue body全体とする。実行内容は人間向けMarkdownに記録し、Task control / correlation metadataのJSON blockを併記する。
 
 最低限:
 
@@ -78,6 +90,8 @@ Issue body には人間向け説明と Codex 向け machine-readable JSON block 
 - dependencies
 
 会話履歴全文を渡さない。
+
+JSONへobjective等を重複コピーしない。Symphonyのworkflow promptはIssue body由来の `issue.description` を利用する。
 
 ### Execution Result
 
@@ -140,6 +154,8 @@ Git / test / diff / exit status 等は元データを優先する。
 ## V1 非対象
 
 - Issue を使わない lightweight Task の直接実行
+- bootstrap例外を一般化したmanual execution
+- execution hostの自動provisioning
 - lightweight / Durable の自動分類
 - Task の完全自動最適配分
 - 担当者の能力評価・過去実績学習
@@ -178,18 +194,20 @@ Git / test / diff / exit status 等は元データを優先する。
 13. 共通 ChatGPT Skill により Plan → GO → Issue → Result 取り込みの再現性を確保できる。
 14. validated stable / development を分けて version を管理できる。
 15. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
+16. bootstrap TaskをHuman GOとIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
 
 ## 初期検証順序
 
-1. 1 台目へ Symphony stable release を導入する。
-2. Codex 認証・Git・GitHub credential・workspace を確認する。
-3. GitHub Issue 1件 → Symphony → Codex → Result の最小 E2E を通す。
-4. ChatGPT から Issue 作成 → Human GO → 実行開始を確認する。
-5. 元 Chat から「結果を取り込んで」で Result を取得する。
-6. 同一 Task の continuation を確認する。
-7. 2件以上の Task を並列実行する。
-8. Plan から複数 Task を作り、担当・負荷配分を反映する。
-9. blocked → Human Gate → continuation を確認する。
-10. 安定後、2 台目 execution host への展開方法を確認する。
+1. Human GO後、1台目のbootstrap Task Issueを作成する。
+2. 対象host上のCodex CLI等からbootstrapを明示的に開始し、Symphony stable releaseを導入する。
+3. Codex認証・Git・GitHub credential・workspaceを確認し、version setとverificationをIssueへ保存する。
+4. GitHub Issue 1件 → Symphony → Codex → Result の最小 E2E を通す。
+5. ChatGPT で Plan 作成 → Human GO → Issue 作成 → 実行開始を確認する。
+6. 元 Chat から「結果を取り込んで」で Result を取得する。
+7. 同一 Task の continuation を確認する。
+8. 2件以上の Task を並列実行する。
+9. Plan から複数 Task を作り、担当・負荷配分を反映する。
+10. blocked → Human Gate → continuation を確認する。
+11. 安定後、2台目を既存経路でprovisioningできるか確認し、できない場合だけ限定bootstrap規約を使う。
 
 検証結果が出るまでは、host routing の細部、label 名、Human Gate の具体的遷移、usage telemetry の必須項目を固定しない。

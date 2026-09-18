@@ -1,6 +1,6 @@
 ---
 name: excellent-nd
-description: "ChatGPTでExcellent-NdのConversation-first / Plan-and-Execute運用を行うときに使用する。Human GO後にPlanを1件以上のGitHub実行Taskへ分割し、担当・概算負荷を割り当て、人間向け説明と機械可読情報を併記したIssueを作成・更新する。Issue/PR/test結果を元のPlanへ取り込み、保留、レビュー、継続、host routing、引継ぎを一貫したルールで扱う。共通・公開可能な運用規約だけを扱い、組織固有のプロジェクト名、host名、credential、内部運用情報は含めない。"
+description: "Use when ChatGPT上でExcellent-NdのPlan-and-Execute運用、Task Issue作成、Symphony実行、結果取り込み、Human Gate、host bootstrapまたは引継ぎを扱う。"
 ---
 
 # Excellent-Nd
@@ -15,7 +15,7 @@ ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Task�
 
 1. 明示的なHuman GO前に実行Taskを開始しない。
 2. 1つのChatGPTチャットを計画・判断コンテキストとして扱い、そこから1..N Taskへ分岐できる。
-3. V1では実行Taskごとに1つのGitHub Issueを作る。
+3. V1では実行Taskごとに1つのGitHub Issueを作る。通常TaskはIssue → Symphony → Codexで実行する。
 4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
 5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
 6. `owner` と `execution_target` を分離して扱う。
@@ -23,6 +23,7 @@ ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Task�
 8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
 9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
 10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
+11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、Human GOとIssue記録を維持した限定例外として扱う。
 
 ## ワークフロー
 
@@ -47,18 +48,28 @@ GO前に、最低限以下を提示する。
 各Issueには以下を含める。
 
 - 人間が読めるTask説明
-- acceptance criteria
-- constraints
-- dependencies
-- owner
-- `references/task-schema.md` に従うmachine-readable block
+- objective、constraints、acceptance criteria
+- relevant decisions / references
+- dependencies、owner
+- `references/task-schema.md` に従うTask control / correlation metadata block
 - 利用中のSymphony profileが必要とするrouting label / field
 
 workflow stateは `references/workflow.md` に従う。
 
+### 2a. Bootstrap prerequisite
+
+最初のexecution hostにSymphony runtimeがなく、通常経路をまだ利用できない場合だけ、次のbootstrap規約を使う。
+
+1. Human GO後、通常Taskと同様にGitHub Issueを作り、目的、制約、acceptance criteria、target、verification方法を記録する。
+2. Issueを監査可能な作業記録として、対象host上のCodex CLI等から人間が明示的にbootstrapを開始する。
+3. Symphony / Codex / GitHub連携と最小E2Eを検証し、実測version setとverification結果をIssueへ保存する。
+4. 検証完了後、通常のIssue-first / Symphony executionへ移行する。
+
+この例外を一般的なmanual executionへ拡大しない。2台目以降も、既存のExcellent-Nd / Symphony経路からprovisioningできないhostに限り同じ規約を使い、V1では自動provisioning機構を作らない。
+
 ### 3. Execute
 
-Issueを固定された `execution_target` へroutingする。
+通常の実行Taskは、Issueを固定された `execution_target` へroutingし、SymphonyからCodexへ渡す。
 
 以下はSymphonyへ委ねる。
 
@@ -78,7 +89,7 @@ Issueを固定された `execution_target` へroutingする。
 
 - Taskを `blocked` / 保留へ変更する
 - Issue Workpadへ理由、根拠、具体的な質問を保存する
-- そのIssueの実行routingを停止する
+- そのIssueのexecution-control条件を外し、実行routingを停止する。`execution_target` のidentityは維持する
 - ユーザーが状況・結果を取得したときに判断事項を提示する
 - ユーザー回答後、決定内容をIssueへ保存し、同じIssueを再度実行可能にする
 - 同一Codex threadのcontinuationを優先する
@@ -95,7 +106,7 @@ PRをコード変更・レビュー成果物として使う。
 
 ユーザーが「結果を取り込んで」「状況確認して」「担当A/Bの進捗をまとめて」等と指示した場合:
 
-1. 元Planと関連Task Issueを特定する。
+1. `plan_ref` と `task_ref` の組、元Planに保存したGitHub Issue URL / numberから関連Task Issueを特定する。
 2. 各Issue Workpadとlinked PRを読む。
 3. test / verification statusと必要なGit事実を取得する。
 4. Task別・owner別に要約する。

@@ -11,7 +11,16 @@ V1では次の4つのactive workflow stateを使う。
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証が終わりレビュー待ち |
 
-表示状態とexecution control labelを分離する。profile側ではexecute/ready labelとexecution target別routing labelを使ってよい。
+`workflow_status` はExcellent-Ndと人間向けの論理状態であり、それ自体はSymphonyをdispatch / stopさせない。
+
+Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証後にprofileで定める。
+
+| 情報 | 責務 |
+| --- | --- |
+| `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |
+| GitHub native state | active / terminalの判定 |
+| execution-control label | 実行可否。外すとrequired labelsを満たさなくなる構成にする |
+| execution-target identity | routing先の識別。blocked中も変更しない |
 
 ## Continuation
 
@@ -32,11 +41,12 @@ V1では次の4つのactive workflow stateを使う。
 人間判断でblockedになった場合:
 
 1. Issue Workpadへ理由と具体的質問を保存する。
-2. stateを `blocked` / 保留にする。
-3. Symphonyがcontinuationしないようexecution-control条件を外す。
+2. `workflow_status` を `blocked` / 保留にする。
+3. Symphonyがdispatch / continuationしないようexecution-control条件を外す。
 4. execution-target routing identityは変更しない。
-5. 人間回答後、stateを `scheduled` / 実行予定へ戻し、executionを再度有効化する。
-6. 同じTask threadのcontinuationを優先する。
+5. 人間回答をIssueへ保存する。
+6. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
+7. 同じTask threadのcontinuationを優先する。
 
 ## Account usage / rate-limit exhaustion
 

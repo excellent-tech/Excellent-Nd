@@ -1,6 +1,6 @@
 # Task Issue schema
 
-実行対象Issueは、人間が読める説明と、Codex向けのmachine-readable JSON blockを両方持つ。
+実行対象Issueのbody全体をExecution Packetとする。人間が読めるMarkdownに実行内容を記録し、Excellent-Ndが安定して扱うTask control / correlation metadataをJSON blockで併記する。
 
 ## 人間向けセクション
 
@@ -15,14 +15,26 @@
 - Relevant decisions / references
 - Current status
 
-## Machine-readable block
+SymphonyのpromptはIssue body由来の `issue.description` を利用できるため、Objective等の説明情報をJSONへ重複コピーしない。
 
-fenced JSON blockを使う。schema v1のkeyは安定して扱う。
+## 参照規則
+
+- `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に同じ値がないことを検索する。
+- `task_ref` はPlan内で一意な `T-001` 形式の連番とする。
+- 相関keyは `plan_ref` と `task_ref` の組とする。
+- Durable Taskの実体参照はGitHub Issue URL / numberとし、元Plan側にも保存する。
+- dependencyはGitHub Issue URL、または `plan_ref` と `task_ref` の組で参照する。
+
+中央ID基盤を作らず、repository内検索とGitHub IssueのidentityでV1の結果取り込みに必要な相関を満たす。
+
+## Task control / correlation metadata
+
+このJSONはExecution Packet全体でもCodex向けpromptでもない。routing、状態表示、相関、引継ぎに必要な安定keyだけを持つ。
 
 ```json
 {
   "schema": "excellent-nd/task@v1",
-  "plan_ref": "P-001",
+  "plan_ref": "P-20260918-a1b2c3",
   "task_ref": "T-001",
   "owner": "owner-a",
   "execution_target": "target-a",

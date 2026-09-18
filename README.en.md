@@ -63,6 +63,8 @@ V1 focuses on this path:
 
 > Create a Plan in ChatGPT → split it into 1..N Tasks and assign owners → Human GO → create one GitHub Issue per Task → execute through Symphony / Codex → persist results in GitHub → human asks ChatGPT to pull in the results → ChatGPT merges them back into the original Plan
 
+The bootstrap Task that installs the Symphony runtime on the first execution host—or on a later host that cannot be provisioned through the existing path—is a limited exception. After Human GO, its objective, acceptance criteria, and verification method are recorded in a GitHub Issue, and a human explicitly starts it through Codex CLI or an equivalent tool on the target host. The measured version set and verification results are then saved to the Issue. After runtime validation, work moves to normal Issue-first execution; this exception is not a general manual execution path.
+
 V1 does not implement custom push notifications into ChatGPT, a custom Codex Runner, custom database, custom scheduler, custom Kanban, large Web UI, multi-agent orchestration, multiple AI providers, SaaS, or multi-tenancy.
 
 See [Design](docs/design.md), [V1 Scope](docs/v1-scope.md), and [Open Questions](docs/open-questions.md). The Japanese documents are authoritative for design and specification decisions.
@@ -70,4 +72,6 @@ See [Design](docs/design.md), [V1 Scope](docs/v1-scope.md), and [Open Questions]
 
 ## ChatGPT Skill
 
-The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, Human GO, Issue creation, the machine-readable Task schema, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
+The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, Human GO, Issue creation, Task control and correlation metadata, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
+
+Installing the Skill **only enables the ChatGPT-side operating rules**. It does not mean that the Symphony / Codex runtime has been installed or configured, or that V1 end-to-end validation has completed. V1 execution separately requires working Symphony, Codex, and GitHub integration on an execution host.

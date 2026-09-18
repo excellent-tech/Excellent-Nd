@@ -34,7 +34,7 @@ validated stableとは別に、新しいstable release、nightly、development v
 5. blocked → human decision → continuation
 6. PR作成/更新とreview state
 7. ChatGPTへのResult取り込み
-8. Issue machine-readable schema互換性
+8. Issue Task control / correlation metadata互換性
 9. account usage / rate-limit handling
 10. process restart / recovery
 
