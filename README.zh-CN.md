@@ -19,7 +19,9 @@ Human + ChatGPT: 需求确认 → Plan → Human GO
                                   ↓
 Excellent-Nd workflow:       准备 1 个 Task
                                   ↓
-Symphony / Codex:       实现、调查、验证
+Execution:
+  ├─ Durable Task → Symphony → Codex
+  └─ lightweight Task → 执行路径待验证 → Codex
                                   ↓
 ChatGPT + Human:       确认 Result → 下一步决策
 ```
