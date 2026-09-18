@@ -66,3 +66,8 @@ V1 聚焦以下路径：
 V1 不实现 ChatGPT 自动 push、自建 Codex Runner、自建数据库、自建 scheduler、自建 Kanban、大型 Web UI、multi-agent、多 AI provider、SaaS 或 multi-tenant。
 
 详情请参阅[设计](docs/design.md)、[V1 范围](docs/v1-scope.md)和[未确定事项](docs/open-questions.md)。日文资料是设计和规范的正式版本。
+
+
+## ChatGPT Skill
+
+Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excellent-nd/) 中管理。该 Skill 用于标准化 Plan 拆分、Human GO、Issue 创建、machine-readable Task schema、结果拉取、Human Gate 和 host 迁移规则，并不会新增通信基础设施。
