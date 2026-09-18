@@ -9,6 +9,8 @@ ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Task�
 
 原則として日本語で応答する。ユーザーが別言語を明示した場合は、その言語を優先する。
 
+このSkillのインストールはChatGPT側のworkflowを有効化するだけであり、Symphony / Codex runtimeの導入完了やV1 end-to-end動作確認完了を意味しない。実行環境が未検証の場合は、実装済み・稼働済みのように説明しない。
+
 ## 基本ルール
 
 1. 明示的なHuman GO前に実行Taskを開始しない。
