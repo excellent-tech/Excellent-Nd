@@ -1,23 +1,23 @@
 # Task Issue schema
 
-Each executable Issue must remain readable to a human and also include a machine-readable JSON block for Codex-oriented automation.
+実行対象Issueは、人間が読める説明と、Codex向けのmachine-readable JSON blockを両方持つ。
 
-## Human-readable section
+## 人間向けセクション
 
-Include, at minimum:
+最低限、次を含める。
 
-- Task title and purpose
+- Task名と目的
 - Owner
 - Objective
 - Constraints
 - Acceptance criteria
 - Dependencies
-- Relevant decisions/references
+- Relevant decisions / references
 - Current status
 
 ## Machine-readable block
 
-Use a fenced JSON block. Keep keys stable within schema v1.
+fenced JSON blockを使う。schema v1のkeyは安定して扱う。
 
 ```json
 {
@@ -33,22 +33,24 @@ Use a fenced JSON block. Keep keys stable within schema v1.
 }
 ```
 
-Allowed `workflow_status` values for V1:
+V1の `workflow_status`:
 
 - `scheduled` = 実行予定
 - `running` = 処理中
 - `blocked` = 保留
 - `review` = レビュー
 
-Completion is represented by the repository workflow's terminal Issue state, normally a closed Issue after review/merge policy is satisfied.
+完了はrepository workflowのterminal Issue stateで表現する。通常はreview / merge方針を満たした後にIssueをcloseする。
 
-## Host migration
+## Host移行
 
-`execution_target` is immutable for one Issue. To move execution to another target:
+1 Issue内の `execution_target` は変更しない。
 
-1. Persist a checkpoint in the old Issue.
-2. Create a successor Issue with a new `execution_target`.
-3. Set `supersedes` in the successor to the old Issue reference.
-4. Link the old Issue to the successor and stop routing the old Issue.
+別targetへ移す場合:
 
-Do not mix multiple execution-target histories into the same Issue.
+1. 旧Issueにcheckpointを保存する。
+2. 新しい `execution_target` を持つ後継Issueを作成する。
+3. 後継Issueの `supersedes` に旧Issue参照を設定する。
+4. 旧Issueから後継Issueを参照し、旧Issueのroutingを停止する。
+
+同じIssueに複数execution targetの履歴を混在させない。
