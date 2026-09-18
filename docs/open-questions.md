@@ -12,7 +12,7 @@ V1 の基本構成は次で固定する。
 - blocked は人間回答後に同じ Task を continuation する。
 - 同一 Task は原則同一 Codex thread を再利用する。明示分割、context 限界、resume 不能、host 移行時は新 thread へ引き継ぐ。
 - Issue body 全体をExecution Packetとし、人間向けMarkdown + Task control / correlation metadata JSON blockとする。
-- Symphony未導入hostのbootstrapはHuman GOとIssue記録を必須とする限定例外とし、runtime検証後は通常経路へ移行する。
+- Symphony未導入hostのbootstrapはHuman GOとIssue記録を必須とし、通常routing条件を付けない限定例外とする。runtime / profileのsmoke verification後、別の通常Taskでsingle Task E2Eを行う。
 - checkpoint は Issue Workpad + branch / commit + PR を基本とする。
 - 数時間・週次 usage limit は短周期 retry 対象にせず、reset 後の安全な既存再開手段または人間の再開指示を利用する。
 - ChatGPT 共通 workflow は `skills/excellent-nd/` で管理する。

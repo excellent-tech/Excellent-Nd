@@ -137,7 +137,8 @@ Issue には最低限、次を相関可能な形で記録する。
 - Plan reference
 - Task reference
 - assignee / owner
-- execution target / routing information
+- execution target
+- 通常Taskのrouting information
 - objective
 - constraints
 - acceptance criteria
@@ -151,13 +152,16 @@ V1 では専用 DB を作らない。
 
 通常の実行経路は Human GO → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
 
-この循環依存を避けるため、runtime導入と最小E2E検証を行うbootstrap Taskだけは次の限定規約を使う。
+この循環依存を避けるため、runtime readinessとsmoke verificationを確認するbootstrap Taskだけは次の限定規約を使う。
 
 1. ChatGPT上でPlanとbootstrap Taskを作り、通常と同じHuman GOを得る。
 2. GitHub Issueにobjective、constraints、acceptance criteria、execution target、verification方法を永続化する。
-3. 人間が対象host上のCodex CLI等から、そのIssueを作業記録として明示的に開始する。
-4. Symphony / Codex / GitHub連携を検証し、実測したversion setとverification結果をIssueへ記録する。
-5. runtime検証後は通常のIssue-first / Symphony executionへ移行する。
+3. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
+4. 人間が対象host上のCodex CLI等から、そのIssueを作業記録として明示的に開始する。
+5. Symphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことを確認する。
+6. 実測したversion setとverification結果をIssueへ記録し、bootstrapを完了する。
+
+bootstrap完了後、routing条件を持つ別の通常Task Issueで `GitHub Issue → Symphony → Codex → branch / change → verification → PR / Result` のsingle Task E2Eを実施する。bootstrapのacceptance criteriaにこのE2Eを含めない。
 
 bootstrapは通常Taskのmanual execution経路ではない。2台目以降も既存のExcellent-Nd / Symphony経路でhost provisioningできない場合に限り同じ規約を使う。V1では自動provisioning機構を作らない。
 
@@ -190,7 +194,7 @@ Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中�
 
 Excellent-Nd はこれらを複製しない。
 
-現行Elixir実装のGitHub Issues adapterはIssue bodyを `issue.description` に正規化し、workflow promptはこの値を参照できる。dispatchとcontinuationは、GitHub native state、adapterのdispatchability、設定された全 `required_labels` の一致を使って判定する。
+現行Elixir実装のGitHub Issues adapterはIssue bodyを `issue.description` に正規化する。Symphony v0.0.3のdefault promptはこの値を含み、非空のcustom `WORKFLOW.md` promptはdefault promptを置き換える。dispatchとcontinuationは、GitHub native state、adapterのdispatchability、設定された全 `required_labels` の一致を使って判定する。
 
 ## Codex App Server
 
@@ -217,6 +221,8 @@ Excellent-Nd は Codex App Server client を独自実装しない。
 | `dependencies` | 先行 Task 等の依存関係 |
 
 V1 では **GitHub Issue body全体をExecution Packet** とする。Objective、Constraints、Acceptance criteria、Relevant decisions / references等は人間が読めるMarkdownへ記録する。
+
+Excellent-Ndのruntime profileには、initial Codex turnのrendered promptへIssue body由来の `issue.description` を必ず含める伝達要件を設ける。custom `WORKFLOW.md` promptでは `{{ issue.description }}` または同等の方法を使い、titleだけを渡してExecution Packetを失う構成を許可しない。
 
 併記するJSON blockはExecution Packet全体でもCodex向け説明でもなく、Excellent-Ndが安定して扱う **Task control / correlation metadata** である。`plan_ref`、`task_ref`、owner、execution target、論理状態等だけを持ち、説明情報を重複コピーしない。初期schemaは `skills/excellent-nd/references/task-schema.md` を正とする。
 

@@ -15,7 +15,13 @@
 - Relevant decisions / references
 - Current status
 
-SymphonyのpromptはIssue body由来の `issue.description` を利用できるため、Objective等の説明情報をJSONへ重複コピーしない。
+## Prompt伝達要件
+
+GitHub Issues adapterはIssue bodyを `issue.description` として正規化する。Excellent-Ndのruntime / profileは、initial Codex turnのrendered promptへこの値を必ず含める。
+
+Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空のcustom `WORKFLOW.md` promptはdefault promptを置き換える。custom promptでも `{{ issue.description }}` または同等の方法でExecution Packet全体をrenderし、titleだけを渡してIssue bodyを失う構成を許可しない。
+
+この要件によりIssue body全体がCodexへ渡るため、Objective等の説明情報をJSONへ重複コピーしない。
 
 ## 参照規則
 

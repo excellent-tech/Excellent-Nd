@@ -15,6 +15,8 @@ V1では次の4つのactive workflow stateを使う。
 
 Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証後にprofileで定める。
 
+通常Task用profileは明示的なexecution-control条件を要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。
+
 | 情報 | 責務 |
 | --- | --- |
 | `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |

@@ -30,10 +30,12 @@ Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から Hum
 - 複数 Task を複数担当へ概算負荷比率で割り当てられる。
 - V1 で実行する Task は GitHub Issue として Durable 化する。
 - 通常の実行 Task は GitHub Issue → Symphony → Codex で実行する。Symphony 未導入 host の runtime bootstrap だけは、Human GO と Issue 永続化後に対象 host 上の Codex CLI 等から人間が明示的に開始できる。
+- bootstrap Issue には未導入 profile の routing label / field を要求せず、通常 Task 用の execution-control 条件を付けない。runtime / profile の smoke verification 後、別の通常 Task で single Task E2E を行う。
 - bootstrap は通常 Task の manual execution 経路ではない。runtime 検証後は Issue-first execution へ移行し、後続 host も既存経路で provisioning できない場合に限り同じ限定規約を使う。
 - 1 Issue の execution target は固定し、host 移行時は checkpoint を持つ後継 Issue を作る。
 - active workflow state は 実行予定 / 処理中 / 保留 / レビュー とする。
 - Issue body 全体を Execution Packet とし、人間向け Markdown と Task control / correlation metadata の JSON block を併記する。
+- runtime profile は initial Codex turn に Issue body 由来の `issue.description` を必ず render する。custom `WORKFLOW.md` prompt でも title だけに縮退させない。
 - `workflow_status` は論理状態、GitHub native state と routing / execution-control label は Symphony 実行制御の正本とする。
 - Symphony が提供する Issue-first orchestration は再実装しない。
 - GitHub 操作は公式連携を優先し、不要なら独自 API client を作らない。

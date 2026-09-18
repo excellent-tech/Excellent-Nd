@@ -52,7 +52,7 @@ GO前に、最低限以下を提示する。
 - relevant decisions / references
 - dependencies、owner
 - `references/task-schema.md` に従うTask control / correlation metadata block
-- 利用中のSymphony profileが必要とするrouting label / field
+- 通常Taskでは、利用中のSymphony profileが必要とするrouting label / field
 
 workflow stateは `references/workflow.md` に従う。
 
@@ -60,16 +60,20 @@ workflow stateは `references/workflow.md` に従う。
 
 最初のexecution hostにSymphony runtimeがなく、通常経路をまだ利用できない場合だけ、次のbootstrap規約を使う。
 
-1. Human GO後、通常Taskと同様にGitHub Issueを作り、目的、制約、acceptance criteria、target、verification方法を記録する。
-2. Issueを監査可能な作業記録として、対象host上のCodex CLI等から人間が明示的にbootstrapを開始する。
-3. Symphony / Codex / GitHub連携と最小E2Eを検証し、実測version setとverification結果をIssueへ保存する。
-4. 検証完了後、通常のIssue-first / Symphony executionへ移行する。
+1. Human GO後にGitHub Issueを作り、objective、constraints、acceptance criteria、execution target、verification方法を記録する。
+2. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
+3. Issueを監査可能な作業記録として、対象host上のCodex CLI等から人間が明示的にbootstrapを開始する。
+4. Symphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことまでをsmoke verificationする。
+5. 実測version setとverification結果をIssueへ保存し、bootstrapを完了する。
+6. bootstrap完了後、別の通常Task Issueへrouting条件を適用し、single Task E2Eを実施する。このE2Eはbootstrapのacceptance criteriaに含めない。
 
 この例外を一般的なmanual executionへ拡大しない。2台目以降も、既存のExcellent-Nd / Symphony経路からprovisioningできないhostに限り同じ規約を使い、V1では自動provisioning機構を作らない。
 
 ### 3. Execute
 
 通常の実行Taskは、Issueを固定された `execution_target` へroutingし、SymphonyからCodexへ渡す。
+
+runtime / profileは、initial Codex turnのrendered promptへIssue body由来の `issue.description` を必ず含める。custom `WORKFLOW.md` promptを使う場合も `{{ issue.description }}` または同等の方法でExecution Packet全体をrenderし、titleだけを渡す構成にしない。
 
 以下はSymphonyへ委ねる。
 
