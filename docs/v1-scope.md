@@ -45,12 +45,25 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 ### 複数実行 host
 
 - 最初は 1 台の execution host で end-to-end を検証する。
-- 問題なく運用できることを確認後、同一 profile を 2 台目へ展開する。
+- 問題なく運用できることを確認後、2 台目へ展開する。
 - human assignee と execution target は分離して扱う。
-- routing は Symphony の既存 label/filter 機能等で実現できる範囲を優先する。
-- 独自 scheduler は作らない。
+- Task 作成時に execution target を固定し、同じ Issue の途中では変更しない。
+- host 移行が必要な場合は checkpoint を残して後継 Issue を作る。
+- routing は Symphony の required labels 等の既存機能を優先する。
+- 独自 scheduler / distributed lock は作らない。
+
+### Workflow state
+
+- 実行予定 / `scheduled`
+- 処理中 / `running`
+- 保留 / `blocked`
+- レビュー / `review`
+
+表示状態と Symphony の実行 control / routing label は分離する。
 
 ### Execution Packet
+
+Issue body には人間向け説明と Codex 向け machine-readable JSON block を併記する。
 
 最低限:
 
@@ -100,8 +113,29 @@ Git / test / diff / exit status 等は元データを優先する。
 
 ### checkpoint / 再開
 
-- Git + checkpoint で再開可能な状態を残す。
+- Issue Workpad + branch / commit + PR を V1 checkpoint とする。
+- 同一 Task は原則同一 Codex thread を継続する。
+- 明示的な thread 分割、context 限界、resume 不能、host 移行時は Git + checkpoint から新 thread へ引き継ぐ。
 - Codex thread そのものの移送には依存しない。
+
+### Usage limit
+
+- ChatGPT ログイン中アカウントの Codex 利用枠を前提とする。
+- 数時間・週次枠の枯渇を短周期 retry し続けない。
+- reset timestamp に基づく安全な既存再開手段がなければ Task を保留し、人間の再開指示を利用する。
+- 独自 quota-aware scheduler は V1 では作らない。
+
+### ChatGPT Skill
+
+- 共通 workflow を `skills/excellent-nd/` で管理する。
+- Plan 分割、GO、Issue 作成、schema、結果取り込み、Human Gate、host migration の再現性を Skill で確保する。
+- 組織固有情報は共通 Skill に含めない。
+
+### Version management
+
+- validated stable と development を分離する。
+- validated stable は動作確認済み version set を固定し、latest stable へ自動追従しない。
+- 強制アップデートは V1 全回帰テスト後にのみ stable へ昇格する。
 
 ## V1 非対象
 
@@ -110,7 +144,7 @@ Git / test / diff / exit status 等は元データを優先する。
 - Task の完全自動最適配分
 - 担当者の能力評価・過去実績学習
 - 動的な再配分 / work stealing
-- quota / usage aware scheduling
+- 独自 quota / usage aware scheduling
 - ChatGPT への自動 push
 - 既存 Chat への外部イベント直接書込み
 - 独自 notification infrastructure
@@ -141,7 +175,9 @@ Git / test / diff / exit status 等は元データを優先する。
 10. blocked 時に Human Gate へ戻り、判断後に同じ Task を継続できる。
 11. 1 台目の execution host で end-to-end が安定動作する。
 12. 同じ構成を 2 台目へ展開できる見通しが立つ。
-13. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
+13. 共通 ChatGPT Skill により Plan → GO → Issue → Result 取り込みの再現性を確保できる。
+14. validated stable / development を分けて version を管理できる。
+15. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
 
 ## 初期検証順序
 
