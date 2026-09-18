@@ -1,3 +1,3 @@
 interface:
-  display_name: "Excellent Nd"
-  short_description: "Plan, dispatch, and reconcile Excellent-Nd tasks"
+  display_name: "Excellent-Nd"
+  short_description: "ChatGPTのPlanからTask実行と結果取り込みを標準化"
