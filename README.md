@@ -19,7 +19,9 @@ Human + ChatGPT: 要求確認 → Plan → Human GO
                                   ↓
 Excellent-Nd workflow:       1 Task を準備
                                   ↓
-Symphony / Codex:       実装・調査・検証
+Execution:
+  ├─ Durable Task → Symphony → Codex
+  └─ lightweight Task → 実行経路は要検証 → Codex
                                   ↓
 ChatGPT + Human:       Result 確認 → 次の判断
 ```
