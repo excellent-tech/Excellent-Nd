@@ -71,3 +71,5 @@ V1 では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、�
 ## ChatGPT Skill
 
 Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、Human GO、Issue 作成、machine-readable Task schema、結果取り込み、Human Gate 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
+
+Skill のインストールは **ChatGPT 側の操作規約を有効化するだけ**です。Symphony / Codex の実行環境をインストール・設定したことや、V1 の end-to-end 実装・動作確認が完了したことを意味しません。V1 の実行には、別途 execution host 上の Symphony / Codex / GitHub 連携が必要です。
