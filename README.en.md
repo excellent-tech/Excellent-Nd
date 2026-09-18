@@ -66,3 +66,8 @@ V1 focuses on this path:
 V1 does not implement custom push notifications into ChatGPT, a custom Codex Runner, custom database, custom scheduler, custom Kanban, large Web UI, multi-agent orchestration, multiple AI providers, SaaS, or multi-tenancy.
 
 See [Design](docs/design.md), [V1 Scope](docs/v1-scope.md), and [Open Questions](docs/open-questions.md). The Japanese documents are authoritative for design and specification decisions.
+
+
+## ChatGPT Skill
+
+The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, Human GO, Issue creation, the machine-readable Task schema, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
