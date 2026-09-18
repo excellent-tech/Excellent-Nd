@@ -1,87 +1,115 @@
 ---
 name: excellent-nd
-description: "Use when ChatGPT manages the Excellent-Nd conversation-first Plan-and-Execute workflow: turn a ChatGPT Plan into one or more GitHub-backed execution Tasks after explicit Human GO, allocate owners and approximate workload, create or update human-readable plus machine-readable Task Issues, pull Issue/PR/test results back into the originating Plan, and handle blocked, review, continuation, host routing, and handoff rules. Use only generic/public workflow rules; keep organization-specific project names, hosts, credentials, and private operating details outside this skill."
+description: "ChatGPTでExcellent-NdのConversation-first / Plan-and-Execute運用を行うときに使用する。Human GO後にPlanを1件以上のGitHub実行Taskへ分割し、担当・概算負荷を割り当て、人間向け説明と機械可読情報を併記したIssueを作成・更新する。Issue/PR/test結果を元のPlanへ取り込み、保留、レビュー、継続、host routing、引継ぎを一貫したルールで扱う。共通・公開可能な運用規約だけを扱い、組織固有のプロジェクト名、host名、credential、内部運用情報は含めない。"
 ---
 
 # Excellent-Nd
 
-Operate ChatGPT as the planning and decision UI while using GitHub Issues as durable Task envelopes and Symphony/Codex as the execution path.
+ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Taskの封筒、Symphony / Codexを実行経路として扱う。
 
-## Core rules
+原則として日本語で応答する。ユーザーが別言語を明示した場合は、その言語を優先する。
 
-1. Do not start executable work before explicit Human GO.
-2. Treat one ChatGPT chat as a planning context that may produce 1..N Tasks.
-3. Treat each executable Task as one GitHub Issue in V1.
-4. Prefer one Codex thread per Task. Reuse that thread for continuation of the same Task when available.
-5. Create a new thread when the user explicitly requests separation, the execution context is no longer reliable, or continuation cannot be resumed. Carry forward Git state plus checkpoint data instead of full conversation history.
-6. Keep `owner` and `execution_target` separate.
-7. Fix `execution_target` for the lifetime of an Issue. If work must move to another host, create a successor Issue and link the old and new Issues; do not rewrite the same Issue to another host.
-8. Do not push execution results into a ChatGPT conversation automatically. When the user asks to import or check results, pull GitHub Issue/PR/verification data and merge it back into the Plan context.
-9. Prefer existing ChatGPT/GitHub/Symphony capabilities over a custom runner, database, scheduler, notification service, or App Server client.
-10. Never place private project names, internal host names, credentials, tokens, or organization-specific operating details in this public/common skill.
+## 基本ルール
 
-## Workflow
+1. 明示的なHuman GO前に実行Taskを開始しない。
+2. 1つのChatGPTチャットを計画・判断コンテキストとして扱い、そこから1..N Taskへ分岐できる。
+3. V1では実行Taskごとに1つのGitHub Issueを作る。
+4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
+5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
+6. `owner` と `execution_target` を分離して扱う。
+7. 1 Issueのlifetime中は `execution_target` を固定する。別hostへ移す場合は後継Issueを作り、旧Issueと新Issueを相互参照する。
+8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
+9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
+10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
+
+## ワークフロー
 
 ### 1. Plan
 
-Help the user create a Plan and identify executable Tasks. Before GO, show the proposed Task split, dependencies, owner allocation, and approximate workload distribution.
+ユーザーとPlanを作り、実行Taskを識別する。
 
-When the user gives a ratio such as 30:70, interpret it as approximate total workload rather than a strict Task-count ratio. Consider dependencies, parallelizability, and estimated effort.
+GO前に、最低限以下を提示する。
+
+- Task分割
+- 依存関係
+- owner割当
+- 概算負荷配分
+- execution target案
+
+30:70等の比率はTask件数比ではなく、おおよその総作業負荷として解釈する。依存関係、並列実行可否、想定工数を考慮する。
 
 ### 2. Human GO
 
-Only after explicit GO, create or update the executable GitHub Issues. Each Issue must contain:
+明示的なGO後にのみ、実行対象のGitHub Issueを作成または更新する。
 
-- a human-readable Task description;
-- acceptance criteria and relevant constraints;
-- dependencies and owner;
-- a machine-readable block following `references/task-schema.md`;
-- execution routing labels or fields required by the active Symphony profile.
+各Issueには以下を含める。
 
-Use the workflow states defined in `references/workflow.md`.
+- 人間が読めるTask説明
+- acceptance criteria
+- constraints
+- dependencies
+- owner
+- `references/task-schema.md` に従うmachine-readable block
+- 利用中のSymphony profileが必要とするrouting label / field
+
+workflow stateは `references/workflow.md` に従う。
 
 ### 3. Execute
 
-Route the Issue to its fixed `execution_target`. Let Symphony own polling, workspace lifecycle, retry for transient failures, Codex App Server launch, thread/turn handling, continuation, and concurrency.
+Issueを固定された `execution_target` へroutingする。
 
-Do not treat ordinary transient retry policy as a quota-exhaustion strategy. If an account usage window is exhausted, follow the rate-limit handling in `references/workflow.md`.
+以下はSymphonyへ委ねる。
 
-### 4. Blocked / Human Gate
+- polling
+- workspace lifecycle
+- 一時エラーのretry
+- Codex App Server起動
+- thread / turn管理
+- continuation
+- concurrency
 
-When execution requires human judgment:
+数時間・週次のusage limitを通常の短周期retryで処理しない。account usage枯渇時は `references/workflow.md` のrate-limit方針に従う。
 
-- set the Task to blocked/保留;
-- persist the reason, evidence, and exact question in the Issue workpad;
-- stop executable routing for that Issue;
-- present the decision to the user when they ask for status/results;
-- after the user answers, record the decision and make the same Issue executable again;
-- prefer continuation of the same Codex thread.
+### 4. 保留 / Human Gate
 
-### 5. Review
+人間判断が必要な場合:
 
-Use the Issue as the Task workpad and state record. Use the PR as the code-change and review artifact. A Task in review/レビュー should have a PR or equivalent reviewable change reference and verification results.
+- Taskを `blocked` / 保留へ変更する
+- Issue Workpadへ理由、根拠、具体的な質問を保存する
+- そのIssueの実行routingを停止する
+- ユーザーが状況・結果を取得したときに判断事項を提示する
+- ユーザー回答後、決定内容をIssueへ保存し、同じIssueを再度実行可能にする
+- 同一Codex threadのcontinuationを優先する
 
-### 6. Import results
+### 5. レビュー
 
-When the user says things such as “結果を取り込んで”, “状況確認して”, or asks for Task/owner progress:
+IssueをTaskのWorkpad / 状態記録として使う。
 
-1. Identify the Plan and its Task Issues.
-2. Read each Issue workpad and linked PR.
-3. Retrieve verification/test status and relevant Git facts.
-4. Summarize by Task and owner.
-5. Reconstruct the Plan-wide status, blockers, risks, and next decisions.
-6. Do not import full raw logs unless the user specifically needs them.
+PRをコード変更・レビュー成果物として使う。
 
-## Checkpoint policy
+`review` / レビュー状態のTaskには、原則としてPRまたは同等のreview可能な変更参照とverification結果を持たせる。
 
-Use these as the V1 checkpoint:
+### 6. 結果取り込み
 
-- Git branch / commits / diff for code state;
-- PR for reviewable change state;
-- Issue workpad for decisions, completed work, verification, remaining work, blockers, and handoff information.
+ユーザーが「結果を取り込んで」「状況確認して」「担当A/Bの進捗をまとめて」等と指示した場合:
 
-Do not require a separate repository artifact or custom database in V1.
+1. 元Planと関連Task Issueを特定する。
+2. 各Issue Workpadとlinked PRを読む。
+3. test / verification statusと必要なGit事実を取得する。
+4. Task別・owner別に要約する。
+5. Plan全体の進捗、blocker、risk、次の判断を再構成する。
+6. ユーザーが必要としない限りraw log全文を取り込まない。
 
-## Version policy
+## Checkpoint
 
-Treat the execution stack as a validated version set rather than automatically following latest versions. See `references/version-policy.md`.
+V1のcheckpointは以下とする。
+
+- Git branch / commit / diff: コード状態
+- PR: review可能な変更状態
+- Issue Workpad: 判断、完了作業、verification、残作業、blocker、handoff情報
+
+V1では別repository artifactや独自DBを必須にしない。
+
+## Version管理
+
+常にlatestへ追従せず、検証済みversion setとして実行stackを扱う。詳細は `references/version-policy.md` を参照する。
