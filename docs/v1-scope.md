@@ -62,6 +62,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 - 最初は 1 台の execution host で end-to-end を検証する。
 - 問題なく運用できることを確認後、2 台目へ展開する。
 - human assignee と execution target は分離して扱う。
+- execution targetは管理範囲で一意なhost hostnameを基本とし、public repositoryでは必要に応じnon-sensitive hostname / public aliasを使う。
 - Task 作成時に execution target を固定し、同じ Issue の途中では変更しない。
 - host 移行が必要な場合は checkpoint を残して後継 Issue を作る。
 - routing は Symphony の required labels 等の既存機能を優先する。
@@ -74,7 +75,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 - 保留 / `blocked`
 - レビュー / `review`
 
-`workflow_status` は人間向け論理状態であり、Symphony実行制御の正本ではない。GitHub native state、adapterのdispatchability、profileのrouting / execution-control labelを実行制御の正本とする。blocked時は論理状態とcontrol条件の両方を更新し、execution-target identityは維持する。
+`workflow_status` は人間向け論理状態であり、Symphony実行制御の正本ではない。GitHub native state、adapterのdispatchability、profileのrouting / execution-control label `symphony-ready` を実行制御の正本とする。`nd-status:scheduled|running|blocked|review|failed` は可視化用とする。blocked時は論理状態とcontrol条件の両方を更新し、execution-target identityは維持する。
 
 ### Execution Packet
 
@@ -152,6 +153,7 @@ Git / test / diff / exit status 等は元データを優先する。
 
 - validated stable と development を分離する。
 - validated stable は動作確認済み version set を固定し、latest stable へ自動追従しない。
+- 正式版は `X.Y`、beta / development版は `X.Y.Z`。current candidateは `1.0.1`。
 - 強制アップデートは V1 全回帰テスト後にのみ stable へ昇格する。
 
 ## V1 非対象
@@ -213,4 +215,4 @@ Git / test / diff / exit status 等は元データを優先する。
 10. blocked → Human Gate → continuation を確認する。
 11. 安定後、2台目を既存経路でprovisioningできるか確認し、できない場合だけ限定bootstrap規約を使う。
 
-検証結果が出るまでは、host routing の細部、label 名、Human Gate の具体的遷移、usage telemetry の必須項目を固定しない。
+検証結果が出るまでは、multi-host routing の細部、Human Gate の具体的遷移、usage telemetry の必須項目を固定しない。

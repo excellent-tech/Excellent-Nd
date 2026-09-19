@@ -39,3 +39,7 @@ validated stableとは別に、新しいstable release、nightly、development v
 10. process restart / recovery
 
 合格後に、実際に検証したexact version setをvalidated stableへ昇格する。可能なら旧validated setをrollback候補として保持する。
+
+## Excellent-Nd release numbering
+
+正式版は `X.Y`、beta / development版は `X.Y.Z`。`1.0.1` は `1.0` に向けた最初のcandidate。tagはHuman review後にmainへmergeされたcommitへ付ける。

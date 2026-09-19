@@ -43,7 +43,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
   "plan_ref": "P-20260918-a1b2c3",
   "task_ref": "T-001",
   "owner": "owner-a",
-  "execution_target": "target-a",
+  "execution_target": "build-public-01",
   "workflow_status": "scheduled",
   "dependencies": [],
   "supersedes": null,
@@ -60,7 +60,10 @@ V1の `workflow_status`:
 
 完了はrepository workflowのterminal Issue stateで表現する。通常はreview / merge方針を満たした後にIssueをcloseする。
 
-## Host移行
+## execution_target identity / Host移行
+
+基本identityは同一LAN / 組織管理範囲で一意なhost hostnameとする。public repositoryでprivate/internal hostnameがinfra情報を漏らす場合はnon-sensitive hostname / public aliasを使い、mappingは公開artifact外に保持する。
+
 
 1 Issue内の `execution_target` は変更しない。
 

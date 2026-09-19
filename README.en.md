@@ -1,8 +1,8 @@
 # Excellent-Nd
 
-Excellent-Nd is a project built around [OpenAI Symphony](https://github.com/openai/symphony). It aims to provide a conversation-first, ChatGPT-first Plan-and-Execute workflow that turns only approved work from a ChatGPT Plan into executable Tasks for Codex.
+Excellent-Nd is an open-source **AI-driven development workflow** that puts ChatGPT at the center of planning and decisions, then connects GitHub Issues, [OpenAI Symphony](https://github.com/openai/symphony), and Codex to execute development Tasks. It follows a conversation-first, Plan-and-Execute model and provides the excellent-nd Skill as its ChatGPT-side operating interface.
 
-> The project is at an early stage. We are organizing the public design and validating the V1 end-to-end execution path; no usable implementation is available yet.
+> The first normal single-Task E2E has been demonstrated. The project is in beta preparation for production use; the current beta candidate is `1.0.1`. Result import, continuation, and multi-Task scenarios remain under validation.
 
 [日本語](README.md) | [简体中文](README.zh-CN.md)
 
@@ -75,3 +75,15 @@ See [Design](docs/design.md), [V1 Scope](docs/v1-scope.md), and [Open Questions]
 The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, Human GO, Issue creation, Task control and correlation metadata, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
 
 Installing the Skill **only enables the ChatGPT-side operating rules**. It does not mean that the Symphony / Codex runtime has been installed or configured, or that V1 end-to-end validation has completed. V1 execution separately requires working Symphony, Codex, and GitHub integration on an execution host.
+
+## Responsibilities and user guide
+
+| Component | Responsibility |
+| --- | --- |
+| Excellent-Nd | OSS project / AI-driven development workflow |
+| excellent-nd Skill | ChatGPT-side planning, Human GO, and operating interface |
+| GitHub | Durable Tasks, Execution Packets, checkpoints, PR / Results |
+| Symphony | Issue-first execution orchestration |
+| Codex | Task execution worker |
+
+See the [User Guide](docs/operations.en.md).
