@@ -155,7 +155,7 @@ A. いいえ。retry queue に待機がないことだけを示します。Issue
 
 ```sh
 gh label create symphony-ready --color 0E8A16 --description "Routing / execution control"
-gh label create "nd-status:scheduled" --color C2E0C6 --description "Human GO complete; waiting to run"
+gh label create "nd-status:scheduled" --color C2E0C6 --description "人間による実行承認済み、実行待ち"
 gh label create "nd-status:running" --color 1D76DB --description "Codex execution in progress"
 gh label create "nd-status:blocked" --color D93F0B --description "Waiting for human, external condition, or quota"
 gh label create "nd-status:review" --color FBCA04 --description "Waiting for human review"
