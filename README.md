@@ -1,18 +1,22 @@
 # Excellent-Nd
 
-Excellent-Nd は、[OpenAI Symphony](https://github.com/openai/symphony) を基盤に、ChatGPT で考えた Plan から実行対象だけを Task として切り出し、Codex で実行する Conversation-first / ChatGPT-first の Plan-and-Execute ワークフローを目指すプロジェクトです。
+個人開発、小規模チーム、企業開発のいずれでも、限られた人員、時間、予算、AI 利用枠をどこへ使うかは共通の課題です。
 
-> 現在は開発初期段階です。公開設計を整理し、V1 の end-to-end 実行経路を検証している段階であり、利用可能な実装はまだありません。
+Excellent-Nd は、[OpenAI Symphony](https://github.com/openai/symphony) を基盤に、ChatGPT を計画と判断の中心に置き、実作業を Codex へ渡す Conversation-first / ChatGPT-first の Plan-and-Execute ワークフローを目指すプロジェクトです。
+
+> 最初の通常 single Task については、`ChatGPT Plan → GitHub Issue → Symphony → Codex → branch / change → verification → PR → Human review / merge → Issue close` の end-to-end 経路を実証済みです。V1 全体の仕様確定前であり、結果取り込み、continuation、複数 Task などの検証は継続しています。
 
 [简体中文](README.zh-CN.md) | [English](README.en.md)
 
 ## 解決したい問題
 
-小人数・個人に近い開発では、要求整理、Plan、担当分割、実装、検証までを同じメンバーが横断して扱うことがあります。この場合、人間がすべての Task を手作業で Issue 化・更新すると、その管理自体が負担になります。
+Excellent-Nd は、個人開発から小規模チームまでを主な利用イメージとします。この規模では、要求整理、Plan、担当分割、実装、検証までを同じ人が横断して扱うことも多く、ChatGPT と Codex の間で Task を機械的にコピー＆ペーストしたり、GitHub Issue へ転記・更新したりする作業自体が負担となり、情報や指示の漏れも生じます。同じ課題は、規模の大きな開発にも共通します。
 
-Excellent-Nd は ChatGPT を要求整理、Plan、担当配分、Human GO、結果確認の主 UI とし、Human GO 後の Task を GitHub Issue として Durable 化し、Symphony / Codex へ渡します。人間は Issue 管理を主 UI として意識せず、必要な結果だけを ChatGPT へ取り込みます。
+そこで、人間と ChatGPT が要求整理、Plan、Task 分割、担当配分、Human GO を行い、Codex が Human GO 後の実作業を担います。Task は、目的、制約、受入条件、関連判断、参照情報を含む Execution Packet として GitHub Issue に Durable 化し、Symphony / Codex へ渡します。これにより機械的な転記を減らし、Issue、branch、commit、PR を通じて Task と成果を確認できるようにします。
 
-会話履歴全文を Codex へ渡さず、Task ごとに目的、制約、受入条件、関連判断、参照情報を Execution Packet として渡します。結果も Codex の全文ログではなく、変更、検証、リスク、blocked、未完了事項などの構造化情報として扱います。
+結果は Codex の全文ログではなく、変更、検証、リスク、blocked、未完了事項などの構造化情報として扱います。人間は要求、優先順位、レビュー、最終判断など、人間が集中すべき部分に時間を使います。
+
+[ChatGPT Plus、Pro、Business など Codex を利用できる既存プラン](https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan)と GitHub の既存機能を優先し、独自 Runner や独自管理基盤を増やさないことで、運用負担と追加コストを抑える考え方です。利用条件、利用上限、費用対効果はプランや開発規模によって異なります。
 
 ## 基本フロー
 
