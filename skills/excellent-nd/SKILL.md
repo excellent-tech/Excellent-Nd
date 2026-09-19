@@ -1,21 +1,21 @@
 ---
 name: excellent-nd
-description: "Use when ChatGPT上でExcellent-NdのPlan-and-Execute運用、Task Issue作成、Symphony実行、結果取り込み、Human Gate、host bootstrapまたは引継ぎを扱う。"
+description: "Use when ChatGPT上でExcellent-NdのPlan-and-Execute運用、Task Issue作成、Symphony実行、結果取り込み、人間判断ゲート（Human Gate）、host bootstrapまたは引継ぎを扱う。"
 ---
 
 # Excellent-Nd
 
-Excellent-NdはOSSのAI-driven development workflowである。ChatGPTを計画・判断の主UI、excellent-nd Skillを操作interface、GitHubをDurable Task / checkpoint、Symphonyをexecution orchestration、Codexをexecution workerとして扱う。
+Excellent-NdはオープンソースのAI駆動開発ワークフローである。ChatGPTを計画・判断の主UI、excellent-nd Skillを操作interface、GitHubをDurable Task / checkpoint、Symphonyをexecution orchestration、Codexをexecution workerとして扱う。
 
 原則として日本語で応答する。ユーザーが別言語を明示した場合は、その言語を優先する。
 
-このSkillのインストールはChatGPT側のworkflowを有効化するだけであり、Symphony / Codex runtimeの導入完了やV1 end-to-end動作確認完了を意味しない。実行環境が未検証の場合は、実装済み・稼働済みのように説明しない。
+このSkillのインストールはChatGPT側のworkflowを有効化するだけであり、Symphony / Codex runtimeの導入完了や1.0.x end-to-end動作確認完了を意味しない。実行環境が未検証の場合は、実装済み・稼働済みのように説明しない。
 
 ## 基本ルール
 
-1. 明示的なHuman GO前に実行Taskを開始しない。
+1. 明示的な人間による実行承認（Human GO）前に実行Taskを開始しない。
 2. 1つのChatGPTチャットを計画・判断コンテキストとして扱い、そこから1..N Taskへ分岐できる。
-3. V1では実行Taskごとに1つのGitHub Issueを作る。通常TaskはIssue → Symphony → Codexで実行する。
+3. 1.0.xでは実行Taskごとに1つのGitHub Issueを作る。通常TaskはIssue → Symphony → Codexで実行する。
 4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
 5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
 6. `owner` と `execution_target` を分離して扱う。
@@ -23,7 +23,7 @@ Excellent-NdはOSSのAI-driven development workflowである。ChatGPTを計画�
 8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
 9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
 10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
-11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、Human GOとIssue記録を維持した限定例外として扱う。
+11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、人間による実行承認（Human GO）とIssue記録を維持した限定例外として扱う。
 
 ## ワークフロー
 
@@ -41,7 +41,7 @@ GO前に、最低限以下を提示する。
 
 30:70等の比率はTask件数比ではなく、おおよその総作業負荷として解釈する。依存関係、並列実行可否、想定工数を考慮する。
 
-### 2. Human GO
+### 2. 人間による実行承認（Human GO）
 
 明示的なGO後にのみ、実行対象のGitHub Issueを作成または更新する。
 
@@ -61,14 +61,14 @@ workflow stateは `references/workflow.md` に従う。
 
 最初のexecution hostにSymphony runtimeがなく、通常経路をまだ利用できない場合だけ、次のbootstrap規約を使う。
 
-1. Human GO後にGitHub Issueを作り、objective、constraints、acceptance criteria、execution target、verification方法を記録する。
+1. 人間による実行承認（Human GO）後にGitHub Issueを作り、objective、constraints、acceptance criteria、execution target、verification方法を記録する。
 2. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
 3. Issueを監査可能な作業記録として、対象host上のCodex CLI等から人間が明示的にbootstrapを開始する。
 4. Symphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことまでをsmoke verificationする。
 5. 実測version setとverification結果をIssueへ保存し、bootstrapを完了する。
 6. bootstrap完了後、別の通常Task Issueへrouting条件を適用し、single Task E2Eを実施する。このE2Eはbootstrapのacceptance criteriaに含めない。
 
-この例外を一般的なmanual executionへ拡大しない。2台目以降も、既存のExcellent-Nd / Symphony経路からprovisioningできないhostに限り同じ規約を使い、V1では自動provisioning機構を作らない。
+この例外を一般的なmanual executionへ拡大しない。2台目以降も、既存のExcellent-Nd / Symphony経路からprovisioningできないhostに限り同じ規約を使い、1.0.xでは自動provisioning機構を作らない。
 
 ### 3. Execute
 
@@ -88,7 +88,7 @@ runtime / profileは、initial Codex turnのrendered promptへIssue body由来�
 
 数時間・週次のusage limitを通常の短周期retryで処理しない。account usage枯渇時は `references/workflow.md` のrate-limit方針に従う。
 
-### 4. 保留 / Human Gate
+### 4. 保留 / 人間判断ゲート（Human Gate）
 
 人間判断が必要な場合:
 
@@ -120,13 +120,13 @@ PRをコード変更・レビュー成果物として使う。
 
 ## Checkpoint
 
-V1のcheckpointは以下とする。
+1.0.xのcheckpointは以下とする。
 
 - Git branch / commit / diff: コード状態
 - PR: review可能な変更状態
 - Issue Workpad: 判断、完了作業、verification、残作業、blocker、handoff情報
 
-V1では別repository artifactや独自DBを必須にしない。
+1.0.xでは別repository artifactや独自DBを必須にしない。
 
 ## Version管理
 

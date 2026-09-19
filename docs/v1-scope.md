@@ -1,18 +1,18 @@
-# V1 スコープ
+# 1.0.x スコープ
 
-## V1 の目的
+## 1.0.x の目的
 
-V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphony + Codex を利用して、1 つの Plan から 1 件以上の Task を安全に並列実行できることを確認する。
+1.0.x は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphony + Codex を利用して、1 つの Plan から 1 件以上の Task を安全に並列実行できることを確認する。
 
 中心フロー:
 
-> ChatGPT で Plan 作成 → Task 分割・担当配分 → Human GO → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
+> ChatGPT で Plan 作成 → Task 分割・担当配分 → 人間による実行承認（Human GO） → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
 
-この通常経路を成立させる前提として、Symphony未導入hostではHuman GO済みのbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
+この通常経路を成立させる前提として、Symphony未導入hostでは人間による実行承認（Human GO）済みのbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
 
-新しい管理基盤を作るのではなく、既存の公式機能と OSS を組み合わせ、人間の管理作業と AI 間の不要な context 転送を減らすことが目的である。
+新しい管理基盤を作るのではなく、既存の公式機能と オープンソース を組み合わせ、人間の管理作業と AI 間の不要な context 転送を減らすことが目的である。
 
-## V1 対象
+## 1.0.x 対象
 
 ### ChatGPT / Plan
 
@@ -23,7 +23,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 
 ### Task 分割・担当配分
 
-- Human GO 前に Task 一覧と担当割当を確認できる。
+- 人間による実行承認（Human GO） 前に Task 一覧と担当割当を確認できる。
 - 「担当A:担当B = 約3:7」等、おおよその作業負荷比率を指定できる。
 - 比率は Task 件数ではなく、想定作業量を基準に解釈する。
 - 依存関係と並列実行可否を考慮する。
@@ -31,7 +31,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 
 ### Task / Issue
 
-- V1 で実行する Task は GitHub Issue として Durable 化する。
+- 1.0.x で実行する Task は GitHub Issue として Durable 化する。
 - Taskごとに Plan reference / Task reference / owner / Execution Packet を記録する。
 - 通常Taskには利用するprofileのrouting情報を追加する。
 - `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>`、`task_ref` はPlan内で一意な `T-001` 形式を基本とし、GitHub Issue URL / numberをDurable Taskの実体参照にする。
@@ -49,7 +49,7 @@ V1 は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphon
 ### Bootstrap prerequisite
 
 - 最初のexecution hostへのSymphony runtime導入は、通常Taskの前提を作るbootstrap Taskとして区別する。
-- Human GO前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
+- 人間による実行承認（Human GO）前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
 - Symphony未導入の間だけ、人間が対象host上のCodex CLI等から明示的に開始できる。
 - 通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueをdispatch対象にしない。
 - 完了条件はSymphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routingの非誤dispatch、version set / verification結果の記録までとする。
@@ -122,7 +122,7 @@ Git / test / diff / exit status 等は元データを優先する。
 - 人間が元 Chat で「結果を取り込んで」「状況確認して」等と指示する。
 - ChatGPT は複数 Task の結果を取得し、担当別・Task別・Plan全体の状態に再統合する。
 
-### Human Gate
+### 人間判断ゲート（Human Gate）
 
 - blocked の理由・質問を GitHub に永続化する。
 - ChatGPT が人間へ判断事項を提示する。
@@ -131,7 +131,7 @@ Git / test / diff / exit status 等は元データを優先する。
 
 ### checkpoint / 再開
 
-- Issue Workpad + branch / commit + PR を V1 checkpoint とする。
+- Issue Workpad + branch / commit + PR を 1.0.x checkpoint とする。
 - 同一 Task は原則同一 Codex thread を継続する。
 - 明示的な thread 分割、context 限界、resume 不能、host 移行時は Git + checkpoint から新 thread へ引き継ぐ。
 - Codex thread そのものの移送には依存しない。
@@ -141,22 +141,22 @@ Git / test / diff / exit status 等は元データを優先する。
 - ChatGPT ログイン中アカウントの Codex 利用枠を前提とする。
 - 数時間・週次枠の枯渇を短周期 retry し続けない。
 - reset timestamp に基づく安全な既存再開手段がなければ Task を保留し、人間の再開指示を利用する。
-- 独自 quota-aware scheduler は V1 では作らない。
+- 独自 quota-aware scheduler は 1.0.x では作らない。
 
 ### ChatGPT Skill
 
 - 共通 workflow を `skills/excellent-nd/` で管理する。
-- Plan 分割、GO、Issue 作成、schema、結果取り込み、Human Gate、host migration の再現性を Skill で確保する。
+- Plan 分割、GO、Issue 作成、schema、結果取り込み、人間判断ゲート（Human Gate）、host migration の再現性を Skill で確保する。
 - 組織固有情報は共通 Skill に含めない。
 
 ### Version management
 
 - validated stable と development を分離する。
 - validated stable は動作確認済み version set を固定し、latest stable へ自動追従しない。
-- 正式版は `X.Y`、beta / development版は `X.Y.Z`。current candidateは `1.0.1`。
-- 強制アップデートは V1 全回帰テスト後にのみ stable へ昇格する。
+- バージョン番号と現在の候補版は `skills/excellent-nd/references/version-policy.md` を正本とする。
+- 強制アップデートは 1.0.x 全回帰テスト後にのみ stable へ昇格する。
 
-## V1 非対象
+## 1.0.x 非対象
 
 - Issue を使わない lightweight Task の直接実行
 - bootstrap例外を一般化したmanual execution
@@ -184,7 +184,7 @@ Git / test / diff / exit status 等は元データを優先する。
 
 ## 成功条件
 
-1. ChatGPT 上で 1 つの Plan を作成し、Human GO できる。
+1. ChatGPT 上で 1 つの Plan を作成し、人間による実行承認（Human GO） できる。
 2. Plan から 1..N Task を生成できる。
 3. 複数 Task を複数担当へ概算負荷比率で割り当てられる。
 4. GO 後、Task ごとに GitHub Issue を作成できる。
@@ -193,26 +193,26 @@ Git / test / diff / exit status 等は元データを優先する。
 7. Execution Packet全体がinitial Codex turnへ渡り、Codexが必要な作業を進められる。
 8. Git / test / diff / PR 等の結果を GitHub に永続化できる。
 9. 人間の「結果を取り込んで」という一操作で、ChatGPT が複数 Task の結果を元 Plan に再統合できる。
-10. blocked 時に Human Gate へ戻り、判断後に同じ Task を継続できる。
+10. blocked 時に 人間判断ゲート（Human Gate） へ戻り、判断後に同じ Task を継続できる。
 11. 1 台目の execution host で end-to-end が安定動作する。
 12. 同じ構成を 2 台目へ展開できる見通しが立つ。
 13. 共通 ChatGPT Skill により Plan → GO → Issue → Result 取り込みの再現性を確保できる。
 14. validated stable / development を分けて version を管理できる。
 15. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
-16. bootstrap TaskをHuman GOとIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
+16. bootstrap Taskを人間による実行承認（Human GO）とIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
 
 ## 初期検証順序
 
-1. Human GO後、1台目のbootstrap Task Issueを作成する。
+1. 人間による実行承認（Human GO）後、1台目のbootstrap Task Issueを作成する。
 2. 対象host上のCodex CLI等からbootstrapを明示的に開始し、Symphony stable releaseを導入する。
 3. Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことを確認し、version setとverificationをbootstrap Issueへ保存する。
 4. routing条件を持つ別の通常Taskで、GitHub Issue → Symphony → Codex → branch / change → verification → PR / Result のsingle Task E2Eを通す。
-5. ChatGPT で Plan 作成 → Human GO → Issue 作成 → 実行開始を確認する。
+5. ChatGPT で Plan 作成 → 人間による実行承認（Human GO） → Issue 作成 → 実行開始を確認する。
 6. 元 Chat から「結果を取り込んで」で Result を取得する。
 7. 同一 Task の continuation を確認する。
 8. 2件以上の Task を並列実行する。
 9. Plan から複数 Task を作り、担当・負荷配分を反映する。
-10. blocked → Human Gate → continuation を確認する。
+10. blocked → 人間判断ゲート（Human Gate） → continuation を確認する。
 11. 安定後、2台目を既存経路でprovisioningできるか確認し、できない場合だけ限定bootstrap規約を使う。
 
-検証結果が出るまでは、multi-host routing の細部、Human Gate の具体的遷移、usage telemetry の必須項目を固定しない。
+検証結果が出るまでは、multi-host routing の細部、人間判断ゲート（Human Gate） の具体的遷移、usage telemetry の必須項目を固定しない。

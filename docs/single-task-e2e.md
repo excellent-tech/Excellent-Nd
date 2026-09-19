@@ -16,4 +16,4 @@
 - commit、diff、verification、risk、remaining work を Issue Workpad に記録している
 - review 可能な Pull Request を作成し、人間の review 前には merge していない
 
-この検証は single Task の通常経路だけを対象とする。結果取り込み、continuation、並列 Task、Human Gate、複数 execution host は後続検証とする。
+この検証は single Task の通常経路だけを対象とする。結果取り込み、continuation、並列 Task、人間判断ゲート（Human Gate）、複数 execution host は後続検証とする。

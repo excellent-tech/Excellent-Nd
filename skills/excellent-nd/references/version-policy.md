@@ -1,8 +1,8 @@
-# Version policy
+# バージョン方針
 
 version運用は2系統に分ける。
 
-## Validated stable
+## 検証済み安定版
 
 通常作業では、次の動作確認済みversion setを固定して使う。
 
@@ -15,17 +15,17 @@ version運用は2系統に分ける。
 
 検証完了後にのみ新しいsetへ昇格する。
 
-## Development
+## 開発版
 
 validated stableとは別に、新しいstable release、nightly、development versionを評価するprofileを持ってよい。
 
 未検証のdevelopment profileを重要な実作業に使わない。
 
-## Upgrade validation
+## 更新時の検証
 
 任意upgradeでは、変更componentに応じた回帰テストを行う。
 
-強制/必須upgradeでは、validated stableへ昇格する前にV1全回帰テストを行う。
+強制/必須upgradeでは、validated stableへ昇格する前に1.0.x全回帰テストを行う。
 
 1. single Task end-to-end
 2. multiple Task parallel execution
@@ -40,6 +40,6 @@ validated stableとは別に、新しいstable release、nightly、development v
 
 合格後に、実際に検証したexact version setをvalidated stableへ昇格する。可能なら旧validated setをrollback候補として保持する。
 
-## Excellent-Nd release numbering
+## Excellent-Nd のバージョン番号
 
 正式版は `X.Y`、beta / development版は `X.Y.Z`。`1.0.1` は `1.0` に向けた最初のcandidate。tagはHuman review後にmainへmergeされたcommitへ付ける。

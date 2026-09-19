@@ -2,11 +2,11 @@
 
 ## 人間向け状態
 
-V1では次の4つのactive workflow stateを使う。
+1.0.xでは次の4つのactive workflow stateを使う。
 
 | 表示 | Machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | Human GO済みで実行可能 |
+| 実行予定 | `scheduled` | 人間による実行承認（Human GO）済みで実行可能 |
 | 処理中 | `running` | Codexが処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証が終わりレビュー待ち |
@@ -69,4 +69,4 @@ running中にstatus表示目的で `symphony-ready` を外さない。Codex turn
 - Taskを保留したままにする。
 - 人間が後から明示的に再開する。
 
-V1では独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。
+1.0.xでは独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。

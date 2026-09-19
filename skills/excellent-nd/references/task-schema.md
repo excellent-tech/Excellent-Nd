@@ -31,7 +31,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 - Durable Taskの実体参照はGitHub Issue URL / numberとし、元Plan側にも保存する。
 - dependencyはGitHub Issue URL、または `plan_ref` と `task_ref` の組で参照する。
 
-中央ID基盤を作らず、repository内検索とGitHub IssueのidentityでV1の結果取り込みに必要な相関を満たす。
+中央ID基盤を作らず、repository内検索とGitHub Issueのidentityで1.0.xの結果取り込みに必要な相関を満たす。
 
 ## Task control / correlation metadata
 
@@ -51,7 +51,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 }
 ```
 
-V1の `workflow_status`:
+1.0.xの `workflow_status`:
 
 - `scheduled` = 実行予定
 - `running` = 処理中

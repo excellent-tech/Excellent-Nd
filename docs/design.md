@@ -8,7 +8,7 @@ ChatGPT 上の相談は、要求整理、選択肢比較、Plan 作成、人間�
 
 Excellent-Nd は、人間に Issue 管理を強いるのではなく、ChatGPT を主 UI としながら、実行時の Durable Task は GitHub Issue と Symphony に委ねる。
 
-V1 では「Issue を使わない実行経路」を新たに作らない。人間から見た UX は Conversation-first、内部実行は Issue-first とすることで、独自 Runner や独自状態管理を増やさずに成立するかを検証する。
+1.0.x では「Issue を使わない実行経路」を新たに作らない。人間から見た UX は Conversation-first、内部実行は Issue-first とすることで、独自 Runner や独自状態管理を増やさずに成立するかを検証する。
 
 ## 目的
 
@@ -19,20 +19,20 @@ Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を�
 ## 設計原則
 
 1. ChatGPT を要求整理、Plan、担当分割、GO、結果確認、次の判断の主 UI とする。
-2. Human GO 前に実行しない。
+2. 人間による実行承認（Human GO） 前に実行しない。
 3. 1 ChatGPT Chat は 1 つの計画・判断コンテキストとして扱い、そこから 1 件以上の Task に分岐できる。
 4. 実行コンテキストは Task 単位とし、原則として 1 Task = 1 Codex thread とする。
 5. 同じ Task の追加修正、test failure 修正、review 対応は同一 thread の継続を優先する。
-6. V1 の通常実行 Task は GitHub Issue として Durable 化し、Symphony の Issue-first orchestration を利用する。
+6. 1.0.x の通常実行 Task は GitHub Issue として Durable 化し、Symphony の Issue-first orchestration を利用する。
 7. 全会話ではなく、Task ごとに必要な Execution Packet のみを実行側へ渡す。
 8. Codex の生ログ全文ではなく、Git / test / diff 等の機械情報と短い要約からなる Execution Result を戻す。
 9. GitHub 操作は ChatGPT の公式連携と Symphony の既存 integration を優先する。
 10. Symphony と Codex が持つ scheduler / runner / workspace / retry / thread 管理を再実装しない。
-11. ChatGPT への自動 push は V1 では行わず、人間の明示的な結果取り込みを基本とする。
+11. ChatGPT への自動 push は 1.0.x では行わず、人間の明示的な結果取り込みを基本とする。
 12. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
-13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、Human GO とGitHub上の永続記録を維持した限定例外とする。
+13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、人間による実行承認（Human GO） とGitHub上の永続記録を維持した限定例外とする。
 
-## V1 の全体モデル
+## 1.0.x の全体モデル
 
 ```text
 Human
@@ -42,7 +42,7 @@ ChatGPT Chat
   - Plan
   - Task分割
   - 担当 / 負荷配分
-  - Human GO
+  - 人間による実行承認（Human GO）
   ↓
 GitHub Issues
   - Plan参照
@@ -77,7 +77,7 @@ ChatGPT
 
 Chat 内で合意した作業計画である。必要に応じ複数 Task に分割する。
 
-V1 では Plan を独立 DB に保存しない。元 Chat と、GitHub Issue に記録する Plan 参照で相関できればよい。
+1.0.x では Plan を独立 DB に保存しない。元 Chat と、GitHub Issue に記録する Plan 参照で相関できればよい。
 
 ### Task
 
@@ -106,11 +106,11 @@ Task を実行する AI 文脈である。
 
 Chat ID と Codex thread ID を 1:1 で固定しない。
 
-`plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に検索する。`task_ref` はPlan内で一意な `T-001` 形式とし、両者の組を相関keyにする。Durable TaskそのものはGitHub Issue URL / numberで識別し、元Planにもその参照を保存する。日付と短いrandom tokenにrepository内検索を組み合わせれば、中央ID基盤なしでV1の相関に十分である。
+`plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に検索する。`task_ref` はPlan内で一意な `T-001` 形式とし、両者の組を相関keyにする。Durable TaskそのものはGitHub Issue URL / numberで識別し、元Planにもその参照を保存する。日付と短いrandom tokenにrepository内検索を組み合わせれば、中央ID基盤なしで1.0.xの相関に十分である。
 
 ## 複数 Task と担当配分
 
-V1 では、ユーザーが 1 つの Plan 内で複数 Task の一括実行を指示できる。
+1.0.x では、ユーザーが 1 つの Plan 内で複数 Task の一括実行を指示できる。
 
 例:
 
@@ -126,11 +126,11 @@ ChatGPT は次を考慮して Task を割り当てる。
 
 3:7 等の比率は Task 件数の厳密比率ではなく、**おおよその総作業負荷**として解釈する。
 
-V1 では高度な最適化 scheduler は作らない。ChatGPT が合理的な割当案を作り、人間が GO することで確定する。
+1.0.x では高度な最適化 scheduler は作らない。ChatGPT が合理的な割当案を作り、人間が GO することで確定する。
 
-## Human GO と一括 Issue 作成
+## 人間による実行承認（Human GO） と一括 Issue 作成
 
-Human GO 後、ChatGPT は実行対象 Task ごとに GitHub Issue を作成または更新する。
+人間による実行承認（Human GO） 後、ChatGPT は実行対象 Task ごとに GitHub Issue を作成または更新する。
 
 Issue には最低限、次を相関可能な形で記録する。
 
@@ -146,15 +146,15 @@ Issue には最低限、次を相関可能な形で記録する。
 - relevant references
 - dependencies
 
-V1 では専用 DB を作らない。
+1.0.x では専用 DB を作らない。
 
 ## Bootstrap prerequisite
 
-通常の実行経路は Human GO → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
+通常の実行経路は 人間による実行承認（Human GO） → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
 
 この循環依存を避けるため、runtime readinessとsmoke verificationを確認するbootstrap Taskだけは次の限定規約を使う。
 
-1. ChatGPT上でPlanとbootstrap Taskを作り、通常と同じHuman GOを得る。
+1. ChatGPT上でPlanとbootstrap Taskを作り、通常と同じ人間による実行承認（Human GO）を得る。
 2. GitHub Issueにobjective、constraints、acceptance criteria、execution target、verification方法を永続化する。
 3. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
 4. 人間が対象host上のCodex CLI等から、そのIssueを作業記録として明示的に開始する。
@@ -163,21 +163,21 @@ V1 では専用 DB を作らない。
 
 bootstrap完了後、routing条件を持つ別の通常Task Issueで `GitHub Issue → Symphony → Codex → branch / change → verification → PR / Result` のsingle Task E2Eを実施する。bootstrapのacceptance criteriaにこのE2Eを含めない。
 
-bootstrapは通常Taskのmanual execution経路ではない。2台目以降も既存のExcellent-Nd / Symphony経路でhost provisioningできない場合に限り同じ規約を使う。V1では自動provisioning機構を作らない。
+bootstrapは通常Taskのmanual execution経路ではない。2台目以降も既存のExcellent-Nd / Symphony経路でhost provisioningできない場合に限り同じ規約を使う。1.0.xでは自動provisioning機構を作らない。
 
 ## 実行 host と routing
 
-V1 はまず 1 台の execution host で end-to-end を検証し、安定後に 2 台目へ展開する。
+1.0.x はまず 1 台の execution host で end-to-end を検証し、安定後に 2 台目へ展開する。
 
 人間の責任者である `owner / assignee` と、実際に Codex を動かす `execution_target` は分離する。
 
 `execution_target` は管理範囲で一意なhost hostnameを基本とし、public repositoryでは必要に応じnon-sensitive hostname / public aliasを使う。Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中は固定する**。明示的な host 移行が必要になった場合は、同じ Issue の host 情報を書き換えず、checkpoint を残して後継 Issue を作成する。これにより 1 Issue 内に複数 host の実行履歴を混在させない。
 
-複数 host では Symphony の `required_labels` 等を使って host ごとに routing 条件を分離し、同じ Issue を複数 instance が取得しない構成を優先する。独自分散 scheduler / lock は V1 では追加しない。
+複数 host では Symphony の `required_labels` 等を使って host ごとに routing 条件を分離し、同じ Issue を複数 instance が取得しない構成を優先する。独自分散 scheduler / lock は 1.0.x では追加しない。
 
 ## Symphony の責務
 
-[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) と同revisionの実装から、V1 では次を Symphony に委ねる。
+[Symphony README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/README.md)、[SPEC.md](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/SPEC.md)、[Elixir implementation README](https://github.com/openai/symphony/blob/be10a1b79df723d6d7612b5651c8522704dafb2e/elixir/README.md) と同revisionの実装から、1.0.x では次を Symphony に委ねる。
 
 - Issue tracker polling
 - dispatch / claim
@@ -220,7 +220,7 @@ Excellent-Nd は Codex App Server client を独自実装しない。
 | `relevant_references` | Issue、文書、ファイル、commit 等 |
 | `dependencies` | 先行 Task 等の依存関係 |
 
-V1 では **GitHub Issue body全体をExecution Packet** とする。Objective、Constraints、Acceptance criteria、Relevant decisions / references等は人間が読めるMarkdownへ記録する。
+1.0.x では **GitHub Issue body全体をExecution Packet** とする。Objective、Constraints、Acceptance criteria、Relevant decisions / references等は人間が読めるMarkdownへ記録する。
 
 Excellent-Ndのruntime profileには、initial Codex turnのrendered promptへIssue body由来の `issue.description` を必ず含める伝達要件を設ける。custom `WORKFLOW.md` promptでは `{{ issue.description }}` または同等の方法を使い、titleだけを渡してExecution Packetを失う構成を許可しない。
 
@@ -250,7 +250,7 @@ Git、test、diff、exit status 等の機械情報は、可能な限り元デー
 
 ## 結果の元 Chat への取り込み
 
-V1 では自動 push を行わない。
+1.0.x では自動 push を行わない。
 
 人間が元 Chat で次のように指示する。
 
@@ -262,13 +262,13 @@ ChatGPT は GitHub から Plan に紐づく各 Task / PR / verification を取�
 
 この一操作で十分な間は、既存 Chat への自動書込み IF や独自 notification infrastructure を作らない。
 
-## Workflow state と Human Gate
+## Workflow state と 人間判断ゲート（Human Gate）
 
-V1 の人間向け active state は次の 4 つとする。
+1.0.x の人間向け active state は次の 4 つとする。
 
 | 表示 | machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | Human GO 済みで実行可能 |
+| 実行予定 | `scheduled` | 人間による実行承認（Human GO） 済みで実行可能 |
 | 処理中 | `running` | Codex が処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証後のレビュー待ち |
@@ -289,31 +289,31 @@ Task → 保留
      → same Task continuation
 ```
 
-V1 では複雑な approval engine を作らない。
+1.0.x では複雑な approval engine を作らない。
 
 ## checkpoint
 
-V1 の checkpoint は **Issue Workpad + branch / commit + PR** を基本とする。
+1.0.x の checkpoint は **Issue Workpad + branch / commit + PR** を基本とする。
 
 - Git branch / commit / diff: コード状態
 - PR: レビュー可能な変更状態
 - Issue Workpad: objective、decisions、completed work、remaining work、verification、risks / blockers、handoff
 
-repository artifact や独自 DB は V1 では必須にしない。Codex 会話全文も復旧の正本にしない。
+repository artifact や独自 DB は 1.0.x では必須にしない。Codex 会話全文も復旧の正本にしない。
 
 ## Account usage limit と再開
 
 通常の一時エラーには Symphony の retry / backoff を利用できるが、数時間の usage window や週次枠の枯渇に短周期 retry を繰り返す運用は採用しない。
 
-usage limit を検出した場合は Task を `blocked` / 保留として Issue Workpad に理由を保存する。信頼できる reset timestamp が取得でき、既存機能で安全に時刻指定再開できる場合は reset 後の再開を利用する。V1 の標準機能だけで安全な長時間再開を構成できない場合は、人間の明示的な再開指示を使用する。
+usage limit を検出した場合は Task を `blocked` / 保留として Issue Workpad に理由を保存する。信頼できる reset timestamp が取得でき、既存機能で安全に時刻指定再開できる場合は reset 後の再開を利用する。1.0.x の標準機能だけで安全な長時間再開を構成できない場合は、人間の明示的な再開指示を使用する。
 
-独自 quota-aware scheduler は V1 では作らない。必要性は実運用で再評価する。
+独自 quota-aware scheduler は 1.0.x では作らない。必要性は実運用で再評価する。
 
 ## ChatGPT Skill
 
 共通の ChatGPT 操作規約は `skills/excellent-nd/` で管理する。
 
-Skill は新しい通信 IF を提供するものではなく、Plan 分割、Human GO、Issue 作成、Task control / correlation metadata、結果取り込み、Human Gate、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
+Skill は新しい通信 IF を提供するものではなく、Plan 分割、人間による実行承認（Human GO）、Issue 作成、Task control / correlation metadata、結果取り込み、人間判断ゲート（Human Gate）、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
 
 組織・プロジェクト固有の host 名、credential、非公開運用ルールは public Skill に含めない。
 
@@ -325,9 +325,9 @@ validated stable は Symphony / Codex / WORKFLOW / Skill の動作確認済み v
 
 development は新しい stable / nightly / development version の検証専用とする。
 
-強制アップデート時は、single Task、multi Task、routing、continuation、Human Gate、PR、result import、Task control / correlation metadata、usage limit、restart/recovery を含む V1 全回帰テストを通してから validated stable へ昇格する。
+強制アップデート時は、single Task、multi Task、routing、continuation、人間判断ゲート（Human Gate）、PR、result import、Task control / correlation metadata、usage limit、restart/recovery を含む 1.0.x 全回帰テストを通してから validated stable へ昇格する。
 
-正式版は `X.Y`、beta / development版は `X.Y.Z`、current candidateは `1.0.1`。詳細は `skills/excellent-nd/references/version-policy.md` を参照する。
+バージョン番号と現在の候補版は `skills/excellent-nd/references/version-policy.md` を正本とする。
 
 ## トークン削減
 
@@ -339,7 +339,7 @@ development は新しい stable / nightly / development version の検証専用�
 - Git / test / diff / exit status 等は機械データを利用する。
 - 同一 Task の continuation では thread 継続を優先する。
 
-## V1 で扱わない領域
+## 1.0.x で扱わない領域
 
 - Issue を使わない lightweight Task の直接実行経路
 - bootstrap例外を一般化したmanual execution経路
