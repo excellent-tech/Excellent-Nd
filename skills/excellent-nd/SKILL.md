@@ -5,7 +5,7 @@ description: "Use when ChatGPT上でExcellent-NdのPlan-and-Execute運用、Task
 
 # Excellent-Nd
 
-ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Taskの封筒、Symphony / Codexを実行経路として扱う。
+Excellent-NdはOSSのAI-driven development workflowである。ChatGPTを計画・判断の主UI、excellent-nd Skillを操作interface、GitHubをDurable Task / checkpoint、Symphonyをexecution orchestration、Codexをexecution workerとして扱う。
 
 原則として日本語で応答する。ユーザーが別言語を明示した場合は、その言語を優先する。
 
@@ -19,7 +19,7 @@ ChatGPTを計画・判断の主UIとして使い、GitHub IssueをDurable Task�
 4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
 5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
 6. `owner` と `execution_target` を分離して扱う。
-7. 1 Issueのlifetime中は `execution_target` を固定する。別hostへ移す場合は後継Issueを作り、旧Issueと新Issueを相互参照する。
+7. `execution_target` は同一LAN / 組織管理範囲で一意なhost hostnameを基本identityとし、Issue lifetime中は固定する。移行は後継Issueを作る。public repositoryでは必要に応じnon-sensitive hostname / public aliasを使い、mappingは公開artifact外に保持する。
 8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
 9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
 10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
@@ -53,6 +53,7 @@ GO前に、最低限以下を提示する。
 - dependencies、owner
 - `references/task-schema.md` に従うTask control / correlation metadata block
 - 通常Taskでは、利用中のSymphony profileが必要とするrouting label / field
+- routing用 `symphony-ready` と可視化用 `nd-status:scheduled|running|blocked|review|failed`（原則1つ）
 
 workflow stateは `references/workflow.md` に従う。
 
@@ -71,7 +72,7 @@ workflow stateは `references/workflow.md` に従う。
 
 ### 3. Execute
 
-通常の実行Taskは、Issueを固定された `execution_target` へroutingし、SymphonyからCodexへ渡す。
+通常の実行Taskは、Issueを固定された `execution_target` へroutingし、SymphonyからCodexへ渡す。target未確定の通常Taskをdispatchableにしない。
 
 runtime / profileは、initial Codex turnのrendered promptへIssue body由来の `issue.description` を必ず含める。custom `WORKFLOW.md` promptを使う場合も `{{ issue.description }}` または同等の方法でExecution Packet全体をrenderし、titleだけを渡す構成にしない。
 

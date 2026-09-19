@@ -1,8 +1,8 @@
 # Excellent-Nd
 
-Excellent-Nd 是一个基于 [OpenAI Symphony](https://github.com/openai/symphony) 的项目，目标是实现 Conversation-first / ChatGPT-first 的 Plan-and-Execute 工作流：只把 ChatGPT 计划中经人工确认需要执行的工作整理成 Task，并交给 Codex 执行。
+Excellent-Nd 是一个开源的 **AI-driven development workflow**：它以 ChatGPT 为计划与判断中心，连接 GitHub Issues、[OpenAI Symphony](https://github.com/openai/symphony) 和 Codex 执行开发 Task，采用 Conversation-first / Plan-and-Execute 模式，并提供 excellent-nd Skill 作为 ChatGPT 侧操作接口。
 
-> 项目目前处于开发早期阶段。当前正在整理公开设计并验证 V1 的端到端执行路径，尚无可用实现。
+> 第一个常规 single Task E2E 已验证。项目处于面向生产运行的 beta 阶段，当前 beta candidate 为 `1.0.1`；结果拉取、continuation 和多 Task 仍在验证。
 
 [日本語](README.md) | [English](README.en.md)
 
@@ -75,3 +75,15 @@ V1 不实现 ChatGPT 自动 push、自建 Codex Runner、自建数据库、自�
 Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excellent-nd/) 中管理。该 Skill 用于标准化 Plan 拆分、Human GO、Issue 创建、Task control / correlation metadata、结果拉取、Human Gate 和 host 迁移规则，并不会新增通信基础设施。
 
 安装该 Skill **只会启用 ChatGPT 侧的操作规则**。这并不表示 Symphony / Codex runtime 已完成安装和配置，也不表示 V1 端到端验证已经完成。V1 执行仍需要在 execution host 上另行准备可用的 Symphony、Codex 和 GitHub 集成。
+
+## 职责与使用指南
+
+| Component | 职责 |
+| --- | --- |
+| Excellent-Nd | OSS project / AI-driven development workflow |
+| excellent-nd Skill | ChatGPT 侧计划、Human GO 与操作接口 |
+| GitHub | Durable Task、Execution Packet、checkpoint、PR / Result |
+| Symphony | Issue-first execution orchestration |
+| Codex | Task execution worker |
+
+请参阅[使用指南](docs/operations.zh-CN.md)。

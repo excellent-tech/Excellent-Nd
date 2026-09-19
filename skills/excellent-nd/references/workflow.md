@@ -13,7 +13,7 @@ V1では次の4つのactive workflow stateを使う。
 
 `workflow_status` はExcellent-Ndと人間向けの論理状態であり、それ自体はSymphonyをdispatch / stopさせない。
 
-Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証後にprofileで定める。
+Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。標準routing labelは `symphony-ready`、可視化用は `nd-status:scheduled|running|blocked|review|failed`（原則1つ）とする。
 
 通常Task用profileは明示的なexecution-control条件を要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。
 
@@ -21,8 +21,11 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 | --- | --- |
 | `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |
 | GitHub native state | active / terminalの判定 |
-| execution-control label | 実行可否。外すとrequired labelsを満たさなくなる構成にする |
+| `symphony-ready` | routing / 実行可否。status表示には使わない |
+| `nd-status:*` | Issue一覧の可視化。実行制御には使わない |
 | execution-target identity | routing先の識別。blocked中も変更しない |
+
+running中にstatus表示目的で `symphony-ready` を外さない。Codex turn前failure等は自動更新主体がない場合があり、log / Workpad / Resultを根拠に人間またはChatGPTがfailed / blockedを更新する。customizeは `docs/operations.md` を参照する。
 
 ## Continuation
 

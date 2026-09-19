@@ -1,10 +1,8 @@
 # Excellent-Nd
 
-個人開発、小規模チーム、企業開発のいずれでも、限られた人員、時間、予算、AI 利用枠をどこへ使うかは共通の課題です。
+Excellent-Nd は、ChatGPT を計画・判断の中心に置き、GitHub Issues、[OpenAI Symphony](https://github.com/openai/symphony)、Codex をつないで開発 Task を実行する、Conversation-first / Plan-and-Execute 型の OSS **AI-driven development workflow** です。ChatGPT 側の操作インターフェースとして excellent-nd Skill を提供します。
 
-Excellent-Nd は、[OpenAI Symphony](https://github.com/openai/symphony) を基盤に、ChatGPT を計画と判断の中心に置き、実作業を Codex へ渡す Conversation-first / ChatGPT-first の Plan-and-Execute ワークフローを目指すプロジェクトです。
-
-> 最初の通常 single Task については、`ChatGPT Plan → GitHub Issue → Symphony → Codex → branch / change → verification → PR → Human review / merge → Issue close` の end-to-end 経路を実証済みです。V1 全体の仕様確定前であり、結果取り込み、continuation、複数 Task などの検証は継続しています。
+> 最初の通常 single Task E2E は実証済みです。現在は本番運用に向けた beta 段階で、beta candidate は `1.0.1` です。結果取り込み、continuation、複数 Task は引き続き検証します。
 
 [简体中文](README.zh-CN.md) | [English](README.en.md)
 
@@ -79,3 +77,15 @@ V1 では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、�
 Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、Human GO、Issue 作成、Task control / correlation metadata、結果取り込み、Human Gate 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
 
 Skill のインストールは **ChatGPT 側の操作規約を有効化するだけ**です。Symphony / Codex の実行環境をインストール・設定したことや、V1 の end-to-end 実装・動作確認が完了したことを意味しません。V1 の実行には、別途 execution host 上の Symphony / Codex / GitHub 連携が必要です。
+
+## 責務と利用ガイド
+
+| Component | 責務 |
+| --- | --- |
+| Excellent-Nd | OSS project / AI-driven development workflow |
+| excellent-nd Skill | ChatGPT 側の計画・Human GO・操作インターフェース |
+| GitHub | Durable Task、Execution Packet、checkpoint、PR / Result |
+| Symphony | Issue-first execution orchestration |
+| Codex | Task execution worker |
+
+導入、運用、FAQ、uninstall、version、label、`execution_target` は [利用ガイド](docs/operations.md) を参照してください。

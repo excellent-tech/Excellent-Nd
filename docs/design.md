@@ -171,7 +171,7 @@ V1 はまず 1 台の execution host で end-to-end を検証し、安定後に 
 
 人間の責任者である `owner / assignee` と、実際に Codex を動かす `execution_target` は分離する。
 
-Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中は固定する**。明示的な host 移行が必要になった場合は、同じ Issue の host 情報を書き換えず、checkpoint を残して後継 Issue を作成する。これにより 1 Issue 内に複数 host の実行履歴を混在させない。
+`execution_target` は管理範囲で一意なhost hostnameを基本とし、public repositoryでは必要に応じnon-sensitive hostname / public aliasを使う。Task 作成時に `execution_target` を決定し、**1 Issue の lifetime 中は固定する**。明示的な host 移行が必要になった場合は、同じ Issue の host 情報を書き換えず、checkpoint を残して後継 Issue を作成する。これにより 1 Issue 内に複数 host の実行履歴を混在させない。
 
 複数 host では Symphony の `required_labels` 等を使って host ごとに routing 条件を分離し、同じ Issue を複数 instance が取得しない構成を優先する。独自分散 scheduler / lock は V1 では追加しない。
 
@@ -275,7 +275,7 @@ V1 の人間向け active state は次の 4 つとする。
 
 `workflow_status` はExcellent-Ndと人間向けの論理状態であり、JSON値だけを変更してもSymphonyの実行は制御されない。
 
-Symphony execution controlの正本はGitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証前に固定しない。
+Symphony execution controlの正本はGitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。routing labelは `symphony-ready`、可視化用は `nd-status:scheduled|running|blocked|review|failed` とする。
 
 人間判断が必要になったTaskはIssue Workpadにblocked理由・根拠・質問を保存し、`workflow_status` を `blocked` に更新してexecution-control条件を外す。execution-target identityは変更しない。人間回答を保存した後、`workflow_status` を `scheduled` に戻してexecution controlを再度有効化し、原則として同じCodex threadのcontinuationを試みる。
 
@@ -327,7 +327,7 @@ development は新しい stable / nightly / development version の検証専用�
 
 強制アップデート時は、single Task、multi Task、routing、continuation、Human Gate、PR、result import、Task control / correlation metadata、usage limit、restart/recovery を含む V1 全回帰テストを通してから validated stable へ昇格する。
 
-詳細は `skills/excellent-nd/references/version-policy.md` を参照する。
+正式版は `X.Y`、beta / development版は `X.Y.Z`、current candidateは `1.0.1`。詳細は `skills/excellent-nd/references/version-policy.md` を参照する。
 
 ## トークン削減
 
