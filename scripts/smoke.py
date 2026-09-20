@@ -32,7 +32,12 @@ def command(*args):
     return subprocess.run(args, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
 
 
-def require(condition, message):\n    if not condition:\n        raise RuntimeError(message)\n\n\ndef main(argv=None):
+def require(condition, message):
+    if not condition:
+        raise RuntimeError(message)
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, default=Path("config/runtime-lock.json"))
     parser.add_argument("--runtime", type=Path, required=True)
@@ -44,7 +49,7 @@ def require(condition, message):\n    if not condition:\n        raise RuntimeEr
     asset = manifest["symphony"]["assets"][target()]
     require(digest(args.runtime) == asset["sha256"], "Symphony checksum mismatch")
     codex = command("codex", "--version")
-    assert re.search(rf"\b{re.escape(manifest['codex']['version'])}\b", codex), f"unexpected Codex version: {codex}"
+    require(re.search(rf"\b{re.escape(manifest['codex']['version'])}\b", codex), f"unexpected Codex version: {codex}")
     command("gh", "auth", "status")
     workflow = args.workflow.read_text()
     require("__REPOSITORY__" not in workflow, "WORKFLOW placeholder was not rendered")

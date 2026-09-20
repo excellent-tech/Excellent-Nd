@@ -24,7 +24,7 @@ def classify_interruption(line):
     if re.search(r"(account usage|usage limit|weekly limit|quota exhausted)", line, re.I):
         return "usage_limit"
     if re.search(r"rate limit", line, re.I):
-        retry = re.search(r"retry_after=(\\d+)", line)
+        retry = re.search(r"retry_after=(\d+)", line)
         if "reset_at=" in line or (retry and int(retry.group(1)) >= 3600):
             return "usage_limit"
     for category, pattern in BLOCKING_PATTERNS:
@@ -53,7 +53,7 @@ def sanitize(value):
     value = re.sub(r"https://[^/@\s]+:[^/@\s]+@", "https://[REDACTED]@", value)
     value = re.sub(r"\b(?:github_pat_|gh[pousr]_|sk-)[A-Za-z0-9_-]+", "[REDACTED]", value)
     value = re.sub(
-        r"\b(?:[A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*)=\S+",
+        r"\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|API_KEY|PRIVATE_KEY)[A-Z0-9_]*)=\S+",
         r"\1=[REDACTED]",
         value,
         flags=re.I,
@@ -82,6 +82,8 @@ def next_labels(labels, status):
 
 class GitHub:
     def __init__(self, repo, token=None):
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+            raise ValueError("repo must be owner/name")
         self.repo = repo
         self.token = token or os.environ.get("GITHUB_TOKEN")
         if not self.token:

@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -51,6 +52,8 @@ def main(argv=None):
 
     if not args.skill_confirmed:
         parser.error("confirm the ChatGPT Skill is enabled with --skill-confirmed")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo):
+        parser.error("--repo must be owner/name")
     for command in ("git", "gh", "codex"):
         if not shutil.which(command):
             parser.error(f"missing prerequisite: {command}")
