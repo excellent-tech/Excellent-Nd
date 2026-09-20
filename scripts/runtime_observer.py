@@ -60,7 +60,7 @@ def sanitize(value):
     )
     value = re.sub(r"(?:/home|/Users)/[^\s]+", "[PRIVATE_PATH]", value)
     value = re.sub(r"[A-Za-z]:\\Users\\[^\s]+", "[PRIVATE_PATH]", value)
-    return value[:2000]
+    return value.replace(chr(96), "'")[:2000]
 
 
 def set_workflow_status(body, status):

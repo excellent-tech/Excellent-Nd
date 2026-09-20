@@ -63,7 +63,7 @@ class ObserverTest(unittest.TestCase):
             ["bug", "symphony-ready", "nd-status:scheduled"],
         )
 
-    def test_review_also_removes_routing(self):
+    def test_repository_input_is_validated(self):\n        with self.assertRaises(ValueError):\n            GitHub("../invalid", token="not-used")\n\n    def test_review_also_removes_routing(self):
         self.assertEqual(
             next_labels(["symphony-ready", "nd-status:running"], "review"),
             ["nd-status:review"],

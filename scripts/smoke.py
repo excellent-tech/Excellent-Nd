@@ -32,7 +32,7 @@ def command(*args):
     return subprocess.run(args, check=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).stdout.strip()
 
 
-def main(argv=None):
+def require(condition, message):\n    if not condition:\n        raise RuntimeError(message)\n\n\ndef main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--manifest", type=Path, default=Path("config/runtime-lock.json"))
     parser.add_argument("--runtime", type=Path, required=True)
@@ -42,17 +42,17 @@ def main(argv=None):
 
     manifest = json.loads(args.manifest.read_text())
     asset = manifest["symphony"]["assets"][target()]
-    assert digest(args.runtime) == asset["sha256"], "Symphony checksum mismatch"
+    require(digest(args.runtime) == asset["sha256"], "Symphony checksum mismatch")
     codex = command("codex", "--version")
     assert re.search(rf"\b{re.escape(manifest['codex']['version'])}\b", codex), f"unexpected Codex version: {codex}"
     command("gh", "auth", "status")
     workflow = args.workflow.read_text()
-    assert "__REPOSITORY__" not in workflow
-    assert args.repo in workflow
-    assert "{{ issue.description }}" in workflow
-    assert "symphony-ready" in workflow
-    assert "approval_policy: never" in workflow
-    assert os.access(args.runtime, os.X_OK), "Symphony binary is not executable"
+    require("__REPOSITORY__" not in workflow, "WORKFLOW placeholder was not rendered")
+    require(args.repo in workflow, "WORKFLOW repository mismatch")
+    require("{{ issue.description }}" in workflow, "WORKFLOW omits issue.description")
+    require("symphony-ready" in workflow, "WORKFLOW omits routing label")
+    require("approval_policy: never" in workflow, "WORKFLOW approval policy mismatch")
+    require(os.access(args.runtime, os.X_OK), "Symphony binary is not executable")
     print("readiness: PASS")
     return 0
 
