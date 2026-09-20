@@ -32,57 +32,80 @@
 - **如果正常**：进入步骤 4。
 - **如果异常**：修正安装范围、权限和仓库选择；不要把秘密值贴到 Issue 或日志。
 
-### 4. 准备 Symphony 与 Codex
+### 4. 获取已验证的 runtime
 
-- **要执行的操作**：按上游文档在执行主机安装 Symphony 与 Codex CLI / App Server，并固定待验证的精确版本。
-- **命令 / 界面操作**：安装后用版本显示命令记录实测值。
-- **确认结果**：Symphony 与 Codex App Server 可启动，Git 和 GitHub 可连接。
-- **如果正常**：进入步骤 5。
-- **如果异常**：检查上游要求、权限、网络和认证；正常启动前不要派发 Issue。
+- **操作**: 获取 manifest 固定的 upstream Symphony。
+- **命令 / UI 操作**: 运行 `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed`，并将 `.excellent-nd/` 放在 Git 管理之外。
+- **确认结果**: asset 与 `config/runtime-lock.json` 的 SHA-256 一致。
+- **OK**: 进入步骤 5。
+- **NG**: 检查 platform、release asset 和网络；checksum 不一致时停止。
 
-> **插图候选 2**：截取 Symphony 启动后的正常状态。只显示进程运行并加载目标配置；不要显示令牌、内部主机名、内部路径、环境变量或内部 URL。
+### 5. 确认 Codex App Server 兼容性
 
-### 5. 配置 WORKFLOW、profile 和 GitHub Issues adapter
+- **操作**: 确认 Codex version 与 approval / sandbox policy。
+- **命令 / UI 操作**: 运行 `codex --version`；setup 检查 exact version 和 `approval_policy: never`。
+- **确认结果**: 与 manifest 一致且 App Server 可用。
+- **OK**: 进入步骤 6。
+- **NG**: 不要套用其他 version 的配置；验证完成前停止。
 
-- **要执行的操作**：配置 adapter 与目标主机 profile。
-- **命令 / 界面操作**：在初始 prompt 中加入 `{{ issue.description }}` 或等价值；把 `symphony-ready` 加入常规任务的 `required_labels`，多主机条件不得重叠。
-- **确认结果**：完整 Issue body 进入 Codex 的初始 prompt，非目标 Issue 不被派发。
-- **如果正常**：进入步骤 6。
-- **如果异常**：修正 WORKFLOW、profile、adapter schema 和标签条件；不得只传 title。
+### 6. 确认 WORKFLOW 与 GitHub Issues adapter
 
-### 6. 创建路由与状态标签
+- **操作**: 检查 `.excellent-nd/WORKFLOW.md`。
+- **命令 / UI 操作**: 确认 repository、`required_labels: symphony-ready`、`{{ issue.description }}`、workspace 和 Codex policy。
+- **确认结果**: 完整 Issue body 进入首个 prompt，不调度不合格 Issue。
+- **OK**: 进入步骤 7。
+- **NG**: 修正 template 后重新生成，不使用只传 title 的 profile。
 
-- **要执行的操作**：创建[状态标签](#状态标签)中列出的标签。
-- **命令 / 界面操作**：使用 GitHub 标签界面或 `gh label create`。
-- **确认结果**：获人工执行确认（Human GO）的 Issue 可同时添加 `symphony-ready` 和 `nd-status:scheduled`。
-- **如果正常**：进入步骤 7。
-- **如果异常**：检查标签名称、权限和 `required_labels`。
+### 7. 确认路由与状态标签
 
-> **插图候选 3**：截取 Issue 同时显示 `symphony-ready` 与 `nd-status:scheduled`。应能区分两类标签；不要显示秘密、内部主机名或内部 URL。
+- **操作**: 检查 setup 创建或更新的 label。
+- **命令 / UI 操作**: 在 GitHub 确认 `symphony-ready` 和五个 `nd-status:*`。
+- **确认结果**: 路由与可视化职责分离。
+- **OK**: 进入步骤 8。
+- **NG**: 使权限、名称和 profile `required_labels` 一致。
 
-### 7. 验证版本兼容性并执行冒烟验证
+> **插图候选 3**：能区分 `symphony-ready` 与 `nd-status:scheduled` 的 Issue 画面。不要显示秘密或非公开 hostname / URL。
 
-- **要执行的操作**：实测 approval policy、sandbox、tool schema 及完整配置。
-- **命令 / 界面操作**：检查 adapter 连接、profile 加载、prompt、标签过滤、App Server、Git / PR 权限和非目标 Issue 不派发；在 Workpad 记录精确版本与结果。
-- **确认结果**：所有项目通过，记录不含秘密信息。
-- **如果正常**：进入步骤 8。
-- **如果异常**：检查固定版本的 schema，不照搬其他版本；失败期间不要派发常规任务。
+### 8. 通过 observer 启动 Symphony
 
-### 8. 执行第一个单任务端到端验证
+- **操作**: 在同一 process tree 中启动 observer 与 Symphony。
+- **命令 / UI 操作**: 在步骤4的setup command后增加 `--start`。
+- **确认结果**: observer 转发 stdout / stderr，runtime 持续运行。
+- **OK**: 进入步骤 9。
+- **NG**: 检查 binary、profile、认证和log；不新增 scheduler 或 polling daemon。
 
-- **要执行的操作**：在人工执行确认（Human GO）后，用区别于 bootstrap 的常规任务验证。
-- **命令 / 界面操作**：完成 `ChatGPT → Issue → Symphony → Codex → 分支 / 验证 → PR → 人工审查`，把结果保存到 Workpad 和 PR。
-- **确认结果**：可追踪完整 Issue body、变更、验证、PR 和审查状态。
-- **如果正常**：进入常规运行。
-- **如果异常**：检查 runtime log、Workpad、Git diff、验证和 PR；解决前不要派发更多任务。
+> **插图候选 2**：只显示正常进程和profile已读取。不要显示 token、非公开 hostname / path、环境变量值或内部 URL。
 
+### 9. 执行冒烟验证
+
+- **操作**: 确认 deterministic preflight 与 live runtime。
+- **命令 / UI 操作**: 必要时重新运行 `python3 scripts/smoke.py --runtime .excellent-nd/symphony --workflow .excellent-nd/WORKFLOW.md --repo OWNER/REPOSITORY`，并从log确认没有误调度。
+- **确认结果**: `readiness: PASS`、正常启动且无误调度。
+- **OK**: 进入步骤 10。
+- **NG**: 不要添加 routing label；修正 checksum、Codex version、GitHub auth 或 WORKFLOW。
+
+### 10. 将 readiness 保存到 Workpad
+
+- **操作**: 把实测version、profile revision、验证和剩余风险保存到bootstrap Issue。
+- **命令 / UI 操作**: 只comment已清理秘密的结果。
+- **确认结果**: 仅凭Issue可判断是否能开始E2E。
+- **OK**: 进入步骤 11。
+- **NG**: 保持普通Task不可调度。
+
+### 11. 执行第一个单任务端到端验证
+
+- **操作**: 仅在当前user message同时含 `@excellent-nd` 与人工执行确认（Human GO）时执行普通Task。
+- **命令 / UI 操作**: 完成 `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人工审查`。
+- **确认结果**: 变更、验证和PR可追踪；进入review时同一decision移除routing label。
+- **OK**: 进入常规运行。
+- **NG**: 检查log、Workpad、diff、验证和PR；解决前不调度更多Task。
 只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在人工执行确认（Human GO）和 Issue 持久化后由人明确启动；这是有限例外，不是常规手动执行路径。
 
 ## 运行 / 常见问题
 
 ### Q. 什么时候使用 `@excellent-nd`？
 
-A. 在新会话或 Skill 未自动选择时使用。同一会话已经启用后，无需每条消息都添加。
+A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写），同一决策上下文还必须有人工执行确认（Human GO）。Skill 自动选择或只满足一个 gate 时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
 
 ### Q. 可以只制定计划而不路由执行吗？
 
@@ -131,6 +154,19 @@ A. Symphony 编排 Issue 轮询、workspace、retry、thread / turn；Codex 执�
 ### Q. `No queued retries` 是否表示成功？
 
 A. 否。它只表示没有等待的 retry。还要检查 Issue 状态、runtime log、Workpad、commit / diff、验证和 PR。
+
+## 运行中断记录与恢复
+
+observer在同一Symphony process tree中跟随observable event。只有带Issue context的使用额度耗尽、长时间rate limit、turn timeout、App Server启动失败或agent abnormal exit，才会把已清理秘密和非公开path的category、error、occurred_at、可取得的reset / retry与session / attempt、checkpoint可取得性、剩余工作和恢复条件写入Workpad。短周期retry交给Symphony，不创建comment。缺少Issue编号或准确error时标为无法取得，不作推测。
+
+中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。仅在当前user message再次包含 `@excellent-nd` 与人工执行确认（Human GO）后恢复。
+
+```sh
+python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
+  --reason "resume condition verified" --explicit-mention --human-go
+```
+
+该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。优先同一Issue / thread，不进行无条件自动重新调度。
 
 ## execution_target 方针
 

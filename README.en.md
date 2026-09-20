@@ -87,3 +87,5 @@ Installing the Skill **only enables the ChatGPT-side operating rules**. It does 
 | Codex | Task execution worker |
 
 See the [User Guide](docs/operations.en.md) for installation and operations, and the [version policy](skills/excellent-nd/references/version-policy.md) for release numbering.
+
+The validated runtime entry point is `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed`. See the [User Guide](docs/operations.en.md) for startup, smoke verification, and shutdown.

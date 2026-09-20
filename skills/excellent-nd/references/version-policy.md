@@ -11,6 +11,8 @@ version運用は2系統に分ける。
 - WORKFLOW / config revision
 - Excellent-Nd Skill revision
 
+exact versionと公式release assetのSHA-256は [`config/runtime-lock.json`](../../../config/runtime-lock.json) を正本とする。setup / smokeはこのmanifestを参照し、文書へ値を重複hard-codeしない。
+
 より新しいstable releaseが存在しても、自動upgradeしない。
 
 検証完了後にのみ新しいsetへ昇格する。

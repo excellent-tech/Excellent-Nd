@@ -13,7 +13,7 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 
 ## 基本ルール
 
-1. 明示的な人間による実行承認（Human GO）前に実行Taskを開始しない。
+1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。片方でも欠ける場合はrouting labelを追加・復元せず、Symphony / Codexを開始しない。
 2. 1つのChatGPTチャットを計画・判断コンテキストとして扱い、そこから1..N Taskへ分岐できる。
 3. 1.0.xでは実行Taskごとに1つのGitHub Issueを作る。通常TaskはIssue → Symphony → Codexで実行する。
 4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
@@ -24,6 +24,7 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
 10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
 11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、人間による実行承認（Human GO）とIssue記録を維持した限定例外として扱う。
+12. ChatGPTで安全に完結する調査、GitHub更新、小規模な機械的変更、review / result ingestionをCodex dispatchより優先する。Skillの自動選択はdispatch承認ではない。
 
 ## ワークフロー
 
@@ -43,7 +44,7 @@ GO前に、最低限以下を提示する。
 
 ### 2. 人間による実行承認（Human GO）
 
-明示的なGO後にのみ、実行対象のGitHub Issueを作成または更新する。
+現在のuser messageに `@excellent-nd` と人間による実行承認（Human GO）の両方がある場合だけ、実行対象Issueへrouting条件を追加・復元する。Issue作成をChatGPT側で行う場合も、gate未成立ならdispatchableにしない。
 
 各Issueには以下を含める。
 
@@ -97,6 +98,7 @@ runtime / profileは、initial Codex turnのrendered promptへIssue body由来�
 - そのIssueのexecution-control条件を外し、実行routingを停止する。`execution_target` のidentityは維持する
 - ユーザーが状況・結果を取得したときに判断事項を提示する
 - ユーザー回答後、決定内容をIssueへ保存し、同じIssueを再度実行可能にする
+- 再開する現在のuser messageで、再度 `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する
 - 同一Codex threadのcontinuationを優先する
 
 ### 5. レビュー
@@ -105,7 +107,7 @@ IssueをTaskのWorkpad / 状態記録として使う。
 
 PRをコード変更・レビュー成果物として使う。
 
-`review` / レビュー状態のTaskには、原則としてPRまたは同等のreview可能な変更参照とverification結果を持たせる。
+`review` / レビュー状態のTaskには、原則としてPRまたは同等のreview可能な変更参照とverification結果を持たせる。reviewへの状態更新と同じdecision stepで `symphony-ready` を外す。
 
 ### 6. 結果取り込み
 

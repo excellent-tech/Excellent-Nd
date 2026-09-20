@@ -32,57 +32,80 @@
 - **OK の場合**: 手順 4 へ進む。
 - **NG の場合**: GitHub 側のインストール先、権限、リポジトリ選択を修正する。秘密値を Issue やログへ貼らない。
 
-### 4. Symphony と Codex を準備する
+### 4. 検証済み runtime を取得する
 
-- **操作すること**: 実行ホストへ upstream の Symphony と Codex CLI / App Server を導入し、検証対象の正確なバージョンを固定する。
-- **コマンド / UI 操作**: 各 upstream 文書に従ってインストールし、バージョン表示コマンドで実測値を記録する。
-- **確認する結果**: Symphony と Codex App Server が起動でき、Git と GitHub に接続できる。
+- **操作すること**: manifest に固定された upstream Symphony を取得する。
+- **コマンド / UI 操作**: `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed` を実行し、`.excellent-nd/` は Git 管理外に置く。
+- **確認する結果**: `config/runtime-lock.json` の対象 asset と SHA-256 が一致する。
 - **OK の場合**: 手順 5 へ進む。
-- **NG の場合**: upstream の要件、実行権限、ネットワーク、認証を確認する。正常起動まで Issue を配信可能にしない。
+- **NG の場合**: platform、release asset、network を確認し、checksum 不一致なら中止する。
 
-> **挿図候補 2**: Symphony 起動後の正常状態を撮る。プロセスが稼働し、対象設定を読み込んだことだけが見えていればよい。トークン、非公開ホスト名、非公開パス、環境変数、内部 URL は写さない。
+### 5. Codex App Server の互換性を確認する
 
-### 5. WORKFLOW、profile、GitHub Issues adapter を設定する
-
-- **操作すること**: GitHub Issues adapter と対象ホスト用 profile を設定する。
-- **コマンド / UI 操作**: initial prompt に `{{ issue.description }}` または同等値を含める。通常タスクの `required_labels` に `symphony-ready` を設定し、複数ホストでは条件が重複しないようにする。
-- **確認する結果**: Issue body 全体が `issue.description` から Codex の最初の prompt へ渡り、対象外 Issue は配信されない。
+- **操作すること**: Codex version と approval / sandbox policy を確認する。
+- **コマンド / UI 操作**: `codex --version` を実行する。setup は exact version と `approval_policy: never` を検査する。
+- **確認する結果**: manifest と一致し、App Server が利用できる。
 - **OK の場合**: 手順 6 へ進む。
-- **NG の場合**: WORKFLOW、profile、adapter の schema とラベル条件を修正し、Issue body が title だけへ縮退する構成を使用しない。
+- **NG の場合**: 別 version の設定を流用せず、検証完了まで中止する。
 
-### 6. routing とステータスのラベルを作る
+### 6. WORKFLOW と GitHub Issues adapter を確認する
 
-- **操作すること**: [ステータスラベル](#ステータスラベル)のラベルを作成する。
-- **コマンド / UI 操作**: GitHub のラベル画面または記載の `gh label create` コマンドを使う。
-- **確認する結果**: 実行承認済み Issue に `symphony-ready` と `nd-status:scheduled` を同時に付けられる。
+- **操作すること**: 生成された `.excellent-nd/WORKFLOW.md` を確認する。
+- **コマンド / UI 操作**: repository、`required_labels: symphony-ready`、`{{ issue.description }}`、workspace、Codex policy を確認する。
+- **確認する結果**: Issue body 全体が最初の prompt へ渡り、対象外 Issue は配信されない。
 - **OK の場合**: 手順 7 へ進む。
-- **NG の場合**: ラベル名、権限、profile の `required_labels` を確認する。
+- **NG の場合**: template を修正して再生成する。title だけを渡す profile は使わない。
 
-> **挿図候補 3**: GitHub Issue に `symphony-ready` と `nd-status:scheduled` が付いた画面を撮る。2 種類のラベルが区別できればよい。Issue 本文中の秘密情報、非公開ホスト名、非公開 URL は写さない。
+### 7. routing とステータスのラベルを確認する
 
-### 7. バージョン互換性と smoke verification を確認する
-
-- **操作すること**: approval policy、sandbox、tool schema と構成全体を実測する。
-- **コマンド / UI 操作**: adapter 接続、profile 読込、prompt、ラベル filter、App Server、Git / PR 権限、対象外 Issue の非配信を順に確認し、正確なバージョンと結果を Issue Workpad へ記録する。
-- **確認する結果**: すべて成功し、秘密情報を含まない検証記録が残る。
+- **操作すること**: setup が作成・更新したラベルを確認する。
+- **コマンド / UI 操作**: GitHub で `symphony-ready` と5つの `nd-status:*` を確認する。
+- **確認する結果**: routing と可視化の責務が分離されている。
 - **OK の場合**: 手順 8 へ進む。
-- **NG の場合**: 別バージョンの設定例を流用せず、固定したバージョンの schema を確認する。失敗中は通常タスクを配信しない。
+- **NG の場合**: 権限、名称、profile の `required_labels` を一致させる。
 
-### 8. 最初の single Task E2E を実施する
+> **挿図候補 3**: `symphony-ready` と `nd-status:scheduled` が区別できる Issue 画面。秘密、非公開 hostname / URL は写さない。
 
-- **操作すること**: bootstrap とは別の通常タスクを、人間による実行承認（Human GO）後に実行する。
-- **コマンド / UI 操作**: `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人間レビュー` を通し、Workpad と PR へ結果を保存する。
-- **確認する結果**: Issue body 全体が渡り、変更、検証、PR、レビュー待ち状態を追跡できる。
+### 8. Symphony を observer 経由で起動する
+
+- **操作すること**: Symphony と同じ process tree の observer を起動する。
+- **コマンド / UI 操作**: 手順4のsetup commandへ `--start` を追加する。
+- **確認する結果**: observer が stdout / stderr を転送し、runtime が継続稼働する。
+- **OK の場合**: 手順 9 へ進む。
+- **NG の場合**: binary、profile、認証、process log を確認する。別 scheduler / polling daemon は追加しない。
+
+> **挿図候補 2**: 正常稼働とprofile読込だけが見える画面。token、非公開 hostname / path、環境変数、内部 URL は写さない。
+
+### 9. smoke verification を実施する
+
+- **操作すること**: deterministic preflight と live runtime を確認する。
+- **コマンド / UI 操作**: 必要なら `python3 scripts/smoke.py --runtime .excellent-nd/symphony --workflow .excellent-nd/WORKFLOW.md --repo OWNER/REPOSITORY` を再実行し、誤配信がないことをlogで確認する。
+- **確認する結果**: `readiness: PASS`、正常起動、誤配信なし。
+- **OK の場合**: 手順 10 へ進む。
+- **NG の場合**: routing labelを付けず、checksum、Codex version、GitHub auth、WORKFLOWを修正する。
+
+### 10. readiness を Workpad へ保存する
+
+- **操作すること**: 実測version、profile revision、検証、残riskをbootstrap Issueへ保存する。
+- **コマンド / UI 操作**: 秘密値を除いた結果だけをcommentする。
+- **確認する結果**: IssueだけでE2E開始可否を判断できる。
+- **OK の場合**: 手順 11 へ進む。
+- **NG の場合**: 不足を解消するまで通常Taskをdispatchableにしない。
+
+### 11. 最初の single Task E2E を実施する
+
+- **操作すること**: 現在のuser messageに `@excellent-nd` と人間による実行承認（Human GO）が両方ある場合だけ通常Taskを実行する。
+- **コマンド / UI 操作**: `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人間レビュー` を通す。
+- **確認する結果**: 変更・検証・PRを追跡でき、review遷移と同時にrouting labelが外れる。
 - **OK の場合**: 通常運用へ進む。
-- **NG の場合**: runtime log、Workpad、Git 差分、検証、PR を確認し、原因を解消するまで追加タスクを配信しない。
-
+- **NG の場合**: runtime log、Workpad、diff、検証、PRを確認し、解消まで追加Taskを配信しない。
 Skill の導入だけでは実行環境の導入は完了しない。未導入ホストの bootstrap は、人間による実行承認（Human GO）と Issue 永続化の後に人間が明示的に開始する限定例外であり、通常タスクの手動実行経路ではない。
 
 ## 運用 / よくある質問
 
 ### Q. `@excellent-nd` はいつ付けますか？
 
-A. 新しい会話、または Skill が自動選択されない場合に付けます。同じ会話で有効なら、毎回付ける必要はありません。
+A. Codex dispatchを要求する現在のuser messageに毎回明示します（大文字・小文字は区別しません）。同じ決定文脈に人間による実行承認（Human GO）も必要です。Skillの自動選択または片方のgateだけでは、ChatGPT内の計画・調査・安全なGitHub操作までとし、`symphony-ready`を追加・復元しません。
 
 ### Q. 計画だけを作り、実行へ routing しないことはできますか？
 
@@ -131,6 +154,19 @@ A. Symphony は Issue 監視、workspace、retry、thread / turn を編成しま
 ### Q. `No queued retries` は成功を意味しますか？
 
 A. いいえ。retry queue に待機がないことだけを示します。Issue 状態、runtime log、Workpad、commit / diff、検証、PR を合わせて確認します。
+
+## 実行中断の記録と再開
+
+observerはSymphonyの同一process treeでobservable eventを監視します。Issue contextを持つ利用枠超過、長時間rate limit、turn timeout、App Server起動失敗、agent abnormal exitだけを、秘密情報と非公開pathを除去してWorkpadへ保存します。category、error、occurred_at、取得可能なreset / retryとsession / attempt、checkpoint取得可否、残作業、再開条件を記録します。短周期retryはSymphonyへ委ね、commentを作りません。Issue番号や正確なerrorがeventにない場合は推測せず、取得不能とします。
+
+中断時はIssue bodyの `workflow_status=blocked`、`nd-status:blocked`、`symphony-ready`削除を同じIssue更新で行います。review遷移でもrouting labelを同時に外します。再開は現在のuser messageで `@excellent-nd` と人間による実行承認（Human GO）を再確認してから行います。
+
+```sh
+python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
+  --reason "resume condition verified" --explicit-mention --human-go
+```
+
+決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
 
 ## execution_target 方針
 

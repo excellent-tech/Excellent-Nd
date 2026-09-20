@@ -32,50 +32,73 @@ This guide is for operators installing, running, and disabling Excellent-Nd. See
 - **If OK**: Continue to step 4.
 - **If not OK**: Correct installation scope, permissions, and repository selection. Do not paste secrets into Issues or logs.
 
-### 4. Prepare Symphony and Codex
+### 4. Acquire the validated runtime
 
-- **Action**: Install upstream Symphony and Codex CLI / App Server on the execution host and pin the exact version set under validation.
-- **Command / UI**: Follow upstream instructions and record measured versions with their version commands.
-- **Expected result**: Symphony and Codex App Server start, and Git and GitHub connectivity works.
+- **Action**: Acquire the pinned upstream Symphony release.
+- **Command / UI**: Run `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed`; keep `.excellent-nd/` outside Git.
+- **Expected result**: The asset matches the SHA-256 in `config/runtime-lock.json`.
 - **If OK**: Continue to step 5.
-- **If not OK**: Check upstream requirements, permissions, network access, and authentication. Keep Issues non-dispatchable.
+- **If not OK**: Check platform, release asset, and network; stop on checksum mismatch.
 
-> **Illustration candidate 2**: Capture Symphony's healthy state after startup. Show only the running process and intended configuration; do not show tokens, private hostnames, private paths, environment variables, or internal URLs.
+### 5. Check Codex App Server compatibility
 
-### 5. Configure WORKFLOW, profile, and GitHub Issues adapter
-
-- **Action**: Configure the adapter and target-host profile.
-- **Command / UI**: Include `{{ issue.description }}` or its equivalent in the initial prompt. Require `symphony-ready` for normal Tasks and ensure multi-host conditions do not overlap.
-- **Expected result**: The complete Issue body reaches the initial Codex prompt and non-target Issues are not dispatched.
+- **Action**: Check Codex version and approval / sandbox policy.
+- **Command / UI**: Run `codex --version`; setup checks the exact version and `approval_policy: never`.
+- **Expected result**: The manifest version matches and App Server is available.
 - **If OK**: Continue to step 6.
-- **If not OK**: Correct the WORKFLOW, profile, adapter schema, and label conditions. Never use a title-only prompt.
+- **If not OK**: Do not reuse another version's settings; stop until validated.
 
-### 6. Create routing and status labels
+### 6. Check WORKFLOW and the GitHub Issues adapter
 
-- **Action**: Create the labels in [Status labels](#status-labels).
-- **Command / UI**: Use the GitHub labels UI or `gh label create`.
-- **Expected result**: An approved Issue can carry both `symphony-ready` and `nd-status:scheduled`.
+- **Action**: Inspect `.excellent-nd/WORKFLOW.md`.
+- **Command / UI**: Check repository, `required_labels: symphony-ready`, `{{ issue.description }}`, workspace, and Codex policy.
+- **Expected result**: The full Issue body reaches the initial prompt and ineligible Issues are not dispatched.
 - **If OK**: Continue to step 7.
-- **If not OK**: Check label names, permissions, and profile `required_labels`.
+- **If not OK**: Fix and regenerate the template; do not use a title-only profile.
 
-> **Illustration candidate 3**: Capture an Issue with both `symphony-ready` and `nd-status:scheduled`. Make both roles visible; do not show secrets, private hostnames, or private URLs.
+### 7. Check routing and status labels
 
-### 7. Verify version compatibility and run smoke verification
-
-- **Action**: Measure approval policy, sandbox, tool schema, and the complete configuration.
-- **Command / UI**: Check adapter connectivity, profile loading, prompt rendering, label filtering, App Server, Git / PR permissions, and non-dispatch of out-of-scope Issues. Record exact versions and results in the Workpad.
-- **Expected result**: Every check passes and the record contains no secrets.
+- **Action**: Inspect labels created or updated by setup.
+- **Command / UI**: Check `symphony-ready` and the five `nd-status:*` labels in GitHub.
+- **Expected result**: Routing and visibility responsibilities are separate.
 - **If OK**: Continue to step 8.
-- **If not OK**: Consult the pinned version's schema instead of another version's example. Do not dispatch normal Tasks.
+- **If not OK**: Align permissions, names, and profile `required_labels`.
 
-### 8. Run the first single-Task E2E
+> **Illustration candidate 3**: An Issue where `symphony-ready` and `nd-status:scheduled` are distinguishable. Exclude secrets and private hostnames / URLs.
 
-- **Action**: After Human GO, run a normal Task separate from bootstrap.
-- **Command / UI**: Complete `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → Human review` and save results to the Workpad and PR.
-- **Expected result**: The full Issue body, changes, verification, PR, and review state are traceable.
+### 8. Start Symphony through the observer
+
+- **Action**: Start the observer in the same process tree as Symphony.
+- **Command / UI**: Add `--start` to the step 4 setup command.
+- **Expected result**: The observer relays stdout / stderr and the runtime stays up.
+- **If OK**: Continue to step 9.
+- **If not OK**: Check binary, profile, auth, and logs; do not add another scheduler or polling daemon.
+
+> **Illustration candidate 2**: Show only a healthy process and loaded profile. Exclude tokens, private hostnames / paths, environment values, and internal URLs.
+
+### 9. Run smoke verification
+
+- **Action**: Check deterministic preflight and the live runtime.
+- **Command / UI**: If needed, rerun `python3 scripts/smoke.py --runtime .excellent-nd/symphony --workflow .excellent-nd/WORKFLOW.md --repo OWNER/REPOSITORY`; verify no unintended dispatch in logs.
+- **Expected result**: `readiness: PASS`, healthy startup, and no unintended dispatch.
+- **If OK**: Continue to step 10.
+- **If not OK**: Do not add the routing label; fix checksum, Codex version, GitHub auth, or WORKFLOW.
+
+### 10. Persist readiness in the Workpad
+
+- **Action**: Save measured versions, profile revision, verification, and residual risks to the bootstrap Issue.
+- **Command / UI**: Comment only sanitized results.
+- **Expected result**: The Issue alone shows whether E2E may start.
+- **If OK**: Continue to step 11.
+- **If not OK**: Keep normal Tasks non-dispatchable.
+
+### 11. Run the first single-Task E2E
+
+- **Action**: Run a normal Task only when the current user message has both `@excellent-nd` and explicit Human GO.
+- **Command / UI**: Complete `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → Human review`.
+- **Expected result**: Change, verification, and PR are traceable; review removes the routing label in the same decision.
 - **If OK**: Begin normal operations.
-- **If not OK**: Inspect runtime logs, Workpad, Git diff, verification, and PR. Do not dispatch more Tasks until resolved.
-
+- **If not OK**: Inspect logs, Workpad, diff, verification, and PR; dispatch no more Tasks until resolved.
 Installing the Skill does not install the runtime. Bootstrap on an unprepared host is a limited exception explicitly started by a human after Human GO and Issue persistence; it is not the normal manual execution path.
 
 ## Operations / FAQ
@@ -131,6 +154,19 @@ A. Symphony orchestrates Issue polling, workspaces, retries, and threads / turns
 ### Q. Does `No queued retries` mean success?
 
 A. No. It only says no retry is queued. Inspect Issue state, runtime logs, Workpad, commits / diff, verification, and PR together.
+
+## Runtime interruption records and resume
+
+The observer follows observable events in the same Symphony process tree. Only issue-scoped usage exhaustion, long rate limits, turn timeout, App Server startup failure, or abnormal agent exit creates a sanitized Workpad entry with category, error, occurred_at, available reset / retry and session / attempt values, checkpoint availability, remaining work, and resume condition. Short retries remain with Symphony and create no comment. Missing Issue or exact error data is reported as unavailable, never guessed.
+
+An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and removal of `symphony-ready` in the same Issue update. Review also removes routing in the same decision. Resume only after the current user message again contains `@excellent-nd` and Human GO.
+
+```sh
+python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
+  --reason "resume condition verified" --explicit-mention --human-go
+```
+
+This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. Prefer the same Issue / thread; never redispatch unconditionally.
 
 ## execution_target policy
 

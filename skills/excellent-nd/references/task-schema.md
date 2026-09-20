@@ -23,6 +23,10 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 
 この要件によりIssue body全体がCodexへ渡るため、Objective等の説明情報をJSONへ重複コピーしない。
 
+## Dispatch gate
+
+通常Taskのrouting labelを追加・復元する時点のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。Task metadataや過去messageだけでは許可しない。`review` / `blocked`では同じIssue更新でrouting labelを外す。
+
 ## 参照規則
 
 - `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に同じ値がないことを検索する。

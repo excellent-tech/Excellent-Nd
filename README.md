@@ -89,3 +89,5 @@ Skill のインストールは **ChatGPT 側の操作規約を有効化するだ
 | Codex | タスク実行 worker |
 
 導入、運用、よくある質問、アンインストール、ラベル、`execution_target` は [利用ガイド](docs/operations.md) を、バージョン番号は[バージョン方針](skills/excellent-nd/references/version-policy.md)を参照してください。
+
+検証済みruntimeの導入入口は `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed` です。起動・smoke・停止は[利用ガイド](docs/operations.md)を参照してください。
