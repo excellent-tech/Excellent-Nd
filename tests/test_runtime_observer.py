@@ -1,6 +1,7 @@
 import unittest
 
 from scripts.runtime_observer import (
+    GitHub,
     classify_interruption,
     extract_context,
     next_labels,
