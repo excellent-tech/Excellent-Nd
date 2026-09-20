@@ -30,3 +30,6 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Host-local Excellent-Nd runtime
+.excellent-nd/

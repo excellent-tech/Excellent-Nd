@@ -16,6 +16,10 @@ class ObserverTest(unittest.TestCase):
             "usage_limit",
         )
         self.assertIsNone(classify_interruption("tracker rate limited; retry_after=30"))
+        self.assertEqual(
+            classify_interruption("tracker rate limit issue_identifier=GH-6 retry_after=7200"),
+            "usage_limit",
+        )
 
     def test_failure_categories(self):
         self.assertEqual(classify_interruption("turn timeout issue_identifier=GH-6"), "turn_timeout")

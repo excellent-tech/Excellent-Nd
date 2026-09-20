@@ -14,14 +14,19 @@ import urllib.request
 STATUS_PREFIX = "nd-status:"
 ROUTING_LABEL = "symphony-ready"
 BLOCKING_PATTERNS = (
-    ("usage_limit", re.compile(r"(account usage|usage limit|weekly limit|quota exhausted|rate limit.+(?:hours?|reset_at))", re.I)),
     ("turn_timeout", re.compile(r"(turn timeout|turn timed out)", re.I)),
-    ("app_server_startup", re.compile(r"(thread/start|app[ -]?server|session (?:initialization|startup)).*(?:fail|error|exit|reject)", re.I)),
+    ("app_server_startup", re.compile(r"(?=.*(?:thread/start|app[ -]?server|session (?:initialization|startup)))(?=.*(?:fail|error|exit|reject))", re.I)),
     ("agent_abnormal_exit", re.compile(r"(agent|subprocess).*(?:abnormal exit|crash|exited unexpectedly)", re.I)),
 )
 
 
 def classify_interruption(line):
+    if re.search(r"(account usage|usage limit|weekly limit|quota exhausted)", line, re.I):
+        return "usage_limit"
+    if re.search(r"rate limit", line, re.I):
+        retry = re.search(r"retry_after=(\\d+)", line)
+        if "reset_at=" in line or (retry and int(retry.group(1)) >= 3600):
+            return "usage_limit"
     for category, pattern in BLOCKING_PATTERNS:
         if pattern.search(line):
             return category
@@ -109,7 +114,7 @@ class GitHub:
             "PATCH",
             f"/issues/{number}",
             {
-                "body": set_workflow_status(issue["body"], status),
+                "body": set_workflow_status(issue["body"], "blocked" if status == "failed" else status),
                 "labels": next_labels(labels, status),
             },
         )
