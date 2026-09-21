@@ -33,3 +33,6 @@ go.work.sum
 
 # Host-local Excellent-Nd runtime
 .excellent-nd/
+
+# Generated distribution artifacts
+dist/

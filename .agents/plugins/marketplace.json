@@ -1,0 +1,20 @@
+{
+  "name": "excellent-nd-local",
+  "interface": {
+    "displayName": "Excellent-Nd Local"
+  },
+  "plugins": [
+    {
+      "name": "excellent-nd",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
