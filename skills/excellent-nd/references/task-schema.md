@@ -23,6 +23,10 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 
 この要件によりIssue body全体がCodexへ渡るため、Objective等の説明情報をJSONへ重複コピーしない。
 
+## Dispatch gate
+
+通常Taskのrouting labelを追加・復元する時点のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。Task metadataや過去messageだけでは許可しない。`review` / `blocked`では同じIssue更新でrouting labelを外す。
+
 ## 参照規則
 
 - `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>` を推奨し、Issue作成前に同じ値がないことを検索する。
@@ -31,7 +35,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 - Durable Taskの実体参照はGitHub Issue URL / numberとし、元Plan側にも保存する。
 - dependencyはGitHub Issue URL、または `plan_ref` と `task_ref` の組で参照する。
 
-中央ID基盤を作らず、repository内検索とGitHub IssueのidentityでV1の結果取り込みに必要な相関を満たす。
+中央ID基盤を作らず、repository内検索とGitHub Issueのidentityで1.0.xの結果取り込みに必要な相関を満たす。
 
 ## Task control / correlation metadata
 
@@ -43,7 +47,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
   "plan_ref": "P-20260918-a1b2c3",
   "task_ref": "T-001",
   "owner": "owner-a",
-  "execution_target": "target-a",
+  "execution_target": "build-public-01",
   "workflow_status": "scheduled",
   "dependencies": [],
   "supersedes": null,
@@ -51,7 +55,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 }
 ```
 
-V1の `workflow_status`:
+1.0.xの `workflow_status`:
 
 - `scheduled` = 実行予定
 - `running` = 処理中
@@ -60,7 +64,10 @@ V1の `workflow_status`:
 
 完了はrepository workflowのterminal Issue stateで表現する。通常はreview / merge方針を満たした後にIssueをcloseする。
 
-## Host移行
+## execution_target identity / Host移行
+
+基本identityは同一LAN / 組織管理範囲で一意なhost hostnameとする。public repositoryでprivate/internal hostnameがinfra情報を漏らす場合はnon-sensitive hostname / public aliasを使い、mappingは公開artifact外に保持する。
+
 
 1 Issue内の `execution_target` は変更しない。
 

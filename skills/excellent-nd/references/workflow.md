@@ -2,18 +2,24 @@
 
 ## 人間向け状態
 
-V1では次の4つのactive workflow stateを使う。
+1.0.xでは次の4つのactive workflow stateを使う。
 
 | 表示 | Machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | Human GO済みで実行可能 |
+| 実行予定 | `scheduled` | 人間による実行承認（Human GO）済みで実行可能 |
 | 処理中 | `running` | Codexが処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証が終わりレビュー待ち |
 
 `workflow_status` はExcellent-Ndと人間向けの論理状態であり、それ自体はSymphonyをdispatch / stopさせない。
 
-Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。具体的なlabel名はV1 E2E検証後にprofileで定める。
+Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。標準routing labelは `symphony-ready`、可視化用は `nd-status:scheduled|running|blocked|review|failed`（原則1つ）とする。
+
+## 明示的dispatch gate
+
+通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` と、同じmessageまたは同一決定文脈の人間による実行承認（Human GO）の両方を要求する。Skillの自動選択はgateを満たさない。片方でも欠ければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
+
+`review` / `blocked`への遷移は、状態更新と同じIssue updateで `symphony-ready`を外す。再開時は両gateを再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
 通常Task用profileは明示的なexecution-control条件を要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。
 
@@ -21,8 +27,11 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 | --- | --- |
 | `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |
 | GitHub native state | active / terminalの判定 |
-| execution-control label | 実行可否。外すとrequired labelsを満たさなくなる構成にする |
+| `symphony-ready` | routing / 実行可否。status表示には使わない |
+| `nd-status:*` | Issue一覧の可視化。実行制御には使わない |
 | execution-target identity | routing先の識別。blocked中も変更しない |
+
+running中にstatus表示目的で `symphony-ready` を外さない。Codex turn前failure等は自動更新主体がない場合があり、log / Workpad / Resultを根拠に人間またはChatGPTがfailed / blockedを更新する。customizeは `docs/operations.md` を参照する。
 
 ## Continuation
 
@@ -47,8 +56,13 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 3. Symphonyがdispatch / continuationしないようexecution-control条件を外す。
 4. execution-target routing identityは変更しない。
 5. 人間回答をIssueへ保存する。
-6. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
-7. 同じTask threadのcontinuationを優先する。
+6. 現在のuser messageで `@excellent-nd` と人間による実行承認（Human GO）を再確認し、resume reasonをWorkpadへ保存する。
+7. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
+8. 同じTask threadのcontinuationを優先する。
+
+## Runtime interruption record
+
+同一process treeのobserverはstructured log / observable eventを受け、Issue contextを持つnon-transient interruptionだけをsanitized Workpadへ記録する。取得不能な値は推測せず、transient retryはSymphonyへ委ねる。observerはscheduler、retry queue、workspace managerを持たず、Symphony起動、event観測、Excellent-Nd固有のGitHub同期だけを行う。
 
 ## Account usage / rate-limit exhaustion
 
@@ -66,4 +80,4 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 - Taskを保留したままにする。
 - 人間が後から明示的に再開する。
 
-V1では独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。
+1.0.xでは独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。
