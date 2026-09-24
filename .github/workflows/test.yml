@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - codex/**
+      - chatgpt/**
   workflow_dispatch:
 
 permissions:
@@ -20,3 +21,12 @@ jobs:
           python-version: "3.11"
       - run: python -m compileall -q scripts tests
       - run: python -m unittest -v
+      - run: python scripts/build_plugin_package.py --check-only
+      - run: python scripts/build_plugin_package.py --output dist/excellent-nd-plugin.zip
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: excellent-nd-plugin
+          path: |
+            dist/excellent-nd-plugin.zip
+            dist/excellent-nd-plugin.zip.sha256
+          if-no-files-found: error
