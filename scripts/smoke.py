@@ -8,8 +8,9 @@ import os
 import platform
 import re
 import subprocess
-import sys
 from pathlib import Path
+
+from execution_target import normalize_execution_target, routing_label
 
 
 def target():
@@ -43,8 +44,11 @@ def main(argv=None):
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--workflow", type=Path, required=True)
     parser.add_argument("--repo", required=True)
+    parser.add_argument("--execution-target", required=True)
     args = parser.parse_args(argv)
 
+    execution_target = normalize_execution_target(args.execution_target)
+    target_label = routing_label(execution_target)
     manifest = json.loads(args.manifest.read_text())
     asset = manifest["symphony"]["assets"][target()]
     require(digest(args.runtime) == asset["sha256"], "Symphony checksum mismatch")
@@ -52,10 +56,12 @@ def main(argv=None):
     require(re.search(rf"\b{re.escape(manifest['codex']['version'])}\b", codex), f"unexpected Codex version: {codex}")
     command("gh", "auth", "status")
     workflow = args.workflow.read_text()
-    require("__REPOSITORY__" not in workflow, "WORKFLOW placeholder was not rendered")
+    require("__REPOSITORY__" not in workflow, "WORKFLOW repository placeholder was not rendered")
+    require("__EXECUTION_TARGET_LABEL__" not in workflow, "WORKFLOW execution target placeholder was not rendered")
     require(args.repo in workflow, "WORKFLOW repository mismatch")
     require("{{ issue.description }}" in workflow, "WORKFLOW omits issue.description")
     require("symphony-ready" in workflow, "WORKFLOW omits routing label")
+    require(target_label in workflow, "WORKFLOW omits execution-target routing label")
     require("approval_policy: never" in workflow, "WORKFLOW approval policy mismatch")
     require(os.access(args.runtime, os.X_OK), "Symphony binary is not executable")
     print("readiness: PASS")

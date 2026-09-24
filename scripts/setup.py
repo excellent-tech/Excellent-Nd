@@ -13,6 +13,13 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from execution_target import (
+    default_execution_target,
+    normalize_execution_target,
+    render_workflow,
+    routing_label,
+)
+
 
 LABELS = (
     ("symphony-ready", "0E8A16", "Routing / execution control"),
@@ -40,9 +47,33 @@ def sha256(path):
     return result.hexdigest()
 
 
+def repo_visibility(repo):
+    return subprocess.run(
+        ["gh", "repo", "view", repo, "--json", "visibility", "--jq", ".visibility"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip().lower()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, help="GitHub owner/repository")
+    parser.add_argument(
+        "--execution-target",
+        help="stable execution target ID; defaults to the local hostname",
+    )
+    parser.add_argument(
+        "--repo-path",
+        type=Path,
+        default=Path("."),
+        help="local target repository root used for .excellent-nd/targets inventory",
+    )
+    parser.add_argument(
+        "--publish-hostname",
+        action="store_true",
+        help="store the actual hostname even when an explicit execution-target alias is used",
+    )
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--skill-confirmed", action="store_true")
     parser.add_argument("--start", action="store_true")
@@ -58,6 +89,26 @@ def main(argv=None):
         if not shutil.which(command):
             parser.error(f"missing prerequisite: {command}")
     subprocess.run(["gh", "auth", "status"], check=True)
+
+    local_hostname = platform.node() or "unknown-host"
+    try:
+        execution_target = normalize_execution_target(
+            args.execution_target or default_execution_target()
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    target_label = routing_label(execution_target)
+    repo_path = args.repo_path.resolve()
+    try:
+        top_level = subprocess.run(
+            ["git", "-C", str(repo_path), "rev-parse", "--show-toplevel"],
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+        ).stdout.strip()
+    except subprocess.CalledProcessError as error:
+        parser.error(f"--repo-path must point inside a Git repository: {error}")
+    repo_root = Path(top_level)
 
     manifest = json.loads(args.manifest.read_text())
     asset = manifest["symphony"]["assets"].get(target())
@@ -76,8 +127,24 @@ def main(argv=None):
     runtime.chmod(0o755)
 
     workflow = args.prefix / "WORKFLOW.md"
-    workflow.write_text(args.template.read_text().replace("__REPOSITORY__", args.repo))
-    for name, color, description in LABELS:
+    workflow.write_text(
+        render_workflow(args.template.read_text(), args.repo, execution_target),
+        encoding="utf-8",
+    )
+    host_config = {
+        "schema": "excellent-nd/host@v1",
+        "repository": args.repo,
+        "execution_target": execution_target,
+        "hostname": local_hostname,
+        "routing_label": target_label,
+    }
+    (args.prefix / "host.json").write_text(
+        json.dumps(host_config, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    labels = LABELS + ((target_label, "5319E7", f"Execution target: {execution_target}"),)
+    for name, color, description in labels:
         subprocess.run(
             ["gh", "label", "create", name, "--repo", args.repo, "--color", color, "--description", description, "--force"],
             check=True,
@@ -85,11 +152,37 @@ def main(argv=None):
 
     smoke = Path(__file__).with_name("smoke.py")
     subprocess.run(
-        [sys.executable, str(smoke), "--manifest", str(args.manifest), "--runtime", str(runtime), "--workflow", str(workflow), "--repo", args.repo],
+        [
+            sys.executable,
+            str(smoke),
+            "--manifest",
+            str(args.manifest),
+            "--runtime",
+            str(runtime),
+            "--workflow",
+            str(workflow),
+            "--repo",
+            args.repo,
+            "--execution-target",
+            execution_target,
+        ],
         check=True,
+    )
+    published_hostname = (
+        local_hostname if args.execution_target is None or args.publish_hostname else None
+    )
+    inventory_path = write_target_record(
+        repo_root,
+        execution_target=execution_target,
+        hostname=published_hostname,
+        enabled=True,
+        max_concurrent_agents=1,
     )
     observer = Path(__file__).with_name("runtime_observer.py")
     command = [sys.executable, str(observer), "run", "--repo", args.repo, "--workflow", str(workflow), "--symphony", str(runtime)]
+    print("execution target:", execution_target)
+    print("routing label:", target_label)
+    print("target inventory:", inventory_path)
     print("runtime command:", " ".join(command))
     if args.start:
         os.execv(sys.executable, command)

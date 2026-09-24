@@ -67,3 +67,10 @@ Public Plugin Directoryを利用できない環境向けに、GitHub Releaseに�
 - manual / advanced installation guide
 
 Public PluginとGitHub Releaseは同じsource revisionから生成し、内容差を作らない。
+
+
+## execution_target routing prerequisite
+
+1 repositoryを複数execution hostで安全に処理するには、各hostのprofileが `symphony-ready` と固有の `nd-target:<execution_target>` を両方要求する。install時target IDはlocal hostnameを既定値にする。hostnameをrepositoryへ載せたくない場合は明示aliasを使える。対象repositoryの `.excellent-nd/targets/*.json` をGit管理し、登録hostをChatGPT / Human / Codexが共通参照する。台帳にcredentialやsecretは保存しない。
+
+別マシン検証では、同一repositoryを2 profileで監視してもtarget不一致のhostがTaskを取得しないnegative testを含める。

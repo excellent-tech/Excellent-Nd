@@ -35,8 +35,8 @@
 ### 4. 検証済み runtime を取得する
 
 - **操作すること**: manifest に固定された upstream Symphony を取得する。
-- **コマンド / UI 操作**: `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed` を実行し、`.excellent-nd/` は Git 管理外に置く。
-- **確認する結果**: `config/runtime-lock.json` の対象 asset と SHA-256 が一致する。
+- **コマンド / UI 操作**: `python3 scripts/setup.py --repo OWNER/REPOSITORY --repo-path . --prefix .excellent-nd --skill-confirmed` を実行するとlocal hostnameをtarget IDの既定値にする。hostnameをrepositoryへ載せたくない場合だけ `--execution-target build-public-01` のようなaliasを指定する。`.excellent-nd/targets/*.json` はGit管理し、それ以外の `.excellent-nd/` runtime stateはGit管理外にする。
+- **確認する結果**: `config/runtime-lock.json` の対象 asset と SHA-256 が一致し、host-local `.excellent-nd/host.json` とrepository台帳 `.excellent-nd/targets/<target-id>.json` にtarget identityが保存される。
 - **OK の場合**: 手順 5 へ進む。
 - **NG の場合**: platform、release asset、network を確認し、checksum 不一致なら中止する。
 
@@ -51,7 +51,7 @@
 ### 6. WORKFLOW と GitHub Issues adapter を確認する
 
 - **操作すること**: 生成された `.excellent-nd/WORKFLOW.md` を確認する。
-- **コマンド / UI 操作**: repository、`required_labels: symphony-ready`、`{{ issue.description }}`、workspace、Codex policy を確認する。
+- **コマンド / UI 操作**: repository、`required_labels` に `symphony-ready` とこのhostの `nd-target:<execution_target>` があること、`{{ issue.description }}`、workspace、Codex policy を確認する。
 - **確認する結果**: Issue body 全体が最初の prompt へ渡り、対象外 Issue は配信されない。
 - **OK の場合**: 手順 7 へ進む。
 - **NG の場合**: template を修正して再生成する。title だけを渡す profile は使わない。
@@ -79,7 +79,7 @@
 ### 9. smoke verification を実施する
 
 - **操作すること**: deterministic preflight と live runtime を確認する。
-- **コマンド / UI 操作**: 必要なら `python3 scripts/smoke.py --runtime .excellent-nd/symphony --workflow .excellent-nd/WORKFLOW.md --repo OWNER/REPOSITORY` を再実行し、誤配信がないことをlogで確認する。
+- **コマンド / UI 操作**: 必要なら `python3 scripts/smoke.py --runtime .excellent-nd/symphony --workflow .excellent-nd/WORKFLOW.md --repo OWNER/REPOSITORY --execution-target TARGET_ID` を再実行し、誤配信がないことをlogで確認する。
 - **確認する結果**: `readiness: PASS`、正常起動、誤配信なし。
 - **OK の場合**: 手順 10 へ進む。
 - **NG の場合**: routing labelを付けず、checksum、Codex version、GitHub auth、WORKFLOWを修正する。
@@ -127,7 +127,7 @@ A. 依存関係、並列可能性、想定工数を基に 1..N タスクへ分�
 
 ### Q. `owner` と `execution_target` の違いは何ですか？
 
-A. `owner` は成果の責任者、`execution_target` は Codex を動かす実行ホストの識別子です。実行先が未確定なら Issue を配信可能にしません。
+A. `owner` は成果の責任者、`execution_target` は Codex を動かす実行ホストの安定IDです。非公開repositoryではinstall時hostnameを既定値にでき、public repositoryではpublic-safe aliasを使います。通常Taskは `symphony-ready` と `nd-target:<execution_target>` の両方が揃ったときだけ該当hostへ配信します。実行先が未確定なら Issue を配信可能にしません。
 
 ### Q. レビュー指摘は Chat、Issue、PR のどこへ書きますか？
 
@@ -178,7 +178,7 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 
 | ラベル | 色 | 説明 |
 | --- | --- | --- |
-| `symphony-ready` | `0E8A16` | routing / 実行制御。ワークフロー状態ではない |
+| `symphony-ready` | `0E8A16` | Task routing / 実行制御。ワークフロー状態ではない |\n| `nd-target:<target-id>` | `5319E7` | host-specific routing。setup時にtargetごとに作成 |
 | `nd-status:scheduled` | `C2E0C6` | 人間による実行承認済み、実行待ち |
 | `nd-status:running` | `1D76DB` | Codex が実行中 |
 | `nd-status:blocked` | `D93F0B` | 人間判断、外部条件、利用枠を待機中 |
@@ -216,4 +216,4 @@ Excellent-Nd のアンインストールは Codex や GitHub 自体の削除を�
 
 ## トラブルシューティング
 
-配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、実行先条件を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。秘密情報を診断記録へ貼らないでください。
+配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。秘密情報を診断記録へ貼らないでください。
