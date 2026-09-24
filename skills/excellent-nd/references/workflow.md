@@ -13,7 +13,7 @@
 
 `workflow_status` はExcellent-Ndと人間向けの論理状態であり、それ自体はSymphonyをdispatch / stopさせない。
 
-Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。標準routing labelは `symphony-ready`、可視化用は `nd-status:scheduled|running|blocked|review|failed`（原則1つ）とする。
+Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。通常Taskでは `symphony-ready` に加え、host-specificな `nd-target:<execution_target>` を要求する。可視化用は `nd-status:scheduled|running|blocked|review|failed`（原則1つ）とする。
 
 ## 明示的dispatch gate
 
