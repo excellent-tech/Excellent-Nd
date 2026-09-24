@@ -168,7 +168,12 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 
 This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. Prefer the same Issue / thread; never redispatch unconditionally.
 
-## execution_target policy
+## Registering and removing multiple execution hosts
+
+See [execution_target and execution-host inventory](execution-targets.en.md) for registration timing, adding multiple hosts, temporary disablement, removal, and re-registration.
+
+In short, setup creates the local inventory record only after smoke PASS, and shared registration becomes effective after that file is committed and merged. Removal follows `disable -> drain/migrate active Tasks -> delete the target file`.
+\n\n## execution_target policy
 
 Use the execution host's hostname as the default identity. It must be unique within the LAN or organizational scope and remain unchanged for the Issue lifetime. A host move creates a checkpointed successor Issue.
 

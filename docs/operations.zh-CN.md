@@ -168,7 +168,12 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 
 该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。优先同一Issue / thread，不进行无条件自动重新调度。
 
-## execution_target 方针
+## 多执行主机的注册与删除
+
+注册时机、多主机追加、临时停用、删除和重新注册请参阅 [execution_target 与执行主机台账](execution-targets.zh-CN.md)。
+
+要点是：setup仅在冒烟验证PASS后生成本地台账file；该file commit并merge后，共享注册才生效。删除顺序为 `disable → drain/迁移active Task → 删除target file`。
+\n\n## execution_target 方针
 
 执行主机 hostname 是基本标识，在同一 LAN 或组织管理范围内必须唯一，并在 Issue 生命周期内保持不变。迁移时创建带 checkpoint 的后继 Issue。
 

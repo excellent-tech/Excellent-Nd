@@ -168,7 +168,12 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 
 決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
 
-## execution_target 方針
+## 複数作業マシンの登録・削除
+
+登録タイミング、複数host追加、一時無効化、削除、再登録の詳細は [execution_target と作業マシン台帳](execution-targets.md) を参照してください。
+
+要点は、**smoke PASS後にローカル台帳fileを生成し、そのfileをcommit / mergeした時点で共有登録が成立する**ことです。削除は `disable → active Taskのdrain / 移行 → target file削除` の順序で行います。
+\n\n## execution_target 方針
 
 実行ホストの hostname を基本識別子とし、同一 LAN または組織の管理範囲で一意にします。Issue の存続期間中は変更せず、ホスト移行時は checkpoint を持つ後継 Issue を作ります。
 
