@@ -48,6 +48,7 @@ class PluginPackageTest(unittest.TestCase):
             self.assertIn("skills/excellent-nd/SKILL.md", names)
             self.assertIn("scripts/setup.py", names)
             self.assertIn("scripts/execution_target.py", names)
+            self.assertIn("scripts/target_inventory.py", names)
             self.assertIn("config/runtime-lock.json", names)
             self.assertNotIn("mcp.json", names)
             self.assertNotIn(".mcp.json", names)
