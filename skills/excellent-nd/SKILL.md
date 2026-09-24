@@ -19,10 +19,10 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
 5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
 6. `owner` と `execution_target` を分離して扱う。
-7. `execution_target` はinstall時に確定した安定target IDとし、非公開repositoryではlocal hostnameを既定値にできる。Issue lifetime中は固定し、移行は後継Issueを作る。public repositoryではnon-sensitive aliasを使い、実hostname mappingは公開artifact外に保持する。詳細は `references/execution-targets.md` を参照する。
+7. `execution_target` はinstall時に確定した安定target IDとし、local hostnameを既定値にする。Issue lifetime中は固定し、移行は後継Issueを作る。hostnameをrepositoryへ載せたくない場合は明示aliasを使える。target台帳は対象repositoryの `.excellent-nd/targets/*.json` を正本とする。詳細は `references/execution-targets.md` を参照する。
 8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
 9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
-10. private project名、内部host名、credential、token、組織固有の運用情報を共通Skillへ入れない。
+10. credential、token、password、private key、秘密値を共通Skillやtarget台帳へ入れない。hostname、target ID、capacity、verification時刻などroutingに必要な非credential metadataは対象repositoryの台帳へ保存できる。
 11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、人間による実行承認（Human GO）とIssue記録を維持した限定例外として扱う。
 12. ChatGPTで安全に完結する調査、GitHub更新、小規模な機械的変更、review / result ingestionをCodex dispatchより優先する。Skillの自動選択はdispatch承認ではない。
 
@@ -32,7 +32,7 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 
 ユーザーとPlanを作り、実行Taskを識別する。
 
-GO前に、最低限以下を提示する。
+GO前に、対象repositoryの `.excellent-nd/targets/*.json` が利用できる場合は登録targetを確認する。実マシン数を固定値として扱わない。\n\n最低限以下を提示する。
 
 - Task分割
 - 依存関係

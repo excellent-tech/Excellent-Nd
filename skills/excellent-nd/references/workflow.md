@@ -21,7 +21,7 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 
 `review` / `blocked`への遷移は、状態更新と同じIssue updateで `symphony-ready`を外す。再開時は両gateを再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
-通常Task用profileは明示的なexecution-control条件を要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。
+通常Task用profileは `symphony-ready` とhost-specific `nd-target:<execution_target>` の両方をexecution-control条件として要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。target候補は対象repositoryの `.excellent-nd/targets/*.json` を参照し、固定的な台数を仮定しない。
 
 | 情報 | 責務 |
 | --- | --- |

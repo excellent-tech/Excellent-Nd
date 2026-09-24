@@ -35,8 +35,8 @@
 ### 4. 検証済み runtime を取得する
 
 - **操作すること**: manifest に固定された upstream Symphony を取得する。
-- **コマンド / UI 操作**: 非公開repositoryでは `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed` を実行するとlocal hostnameをtarget IDの既定値にする。public repositoryでは実hostname漏えいを避けるため `--execution-target build-public-01` のようなpublic-safe aliasを必ず指定する。`.excellent-nd/` は Git 管理外に置く。
-- **確認する結果**: `config/runtime-lock.json` の対象 asset と SHA-256 が一致し、`.excellent-nd/host.json` に固定された `execution_target` と `nd-target:*` が保存される。
+- **コマンド / UI 操作**: `python3 scripts/setup.py --repo OWNER/REPOSITORY --repo-path . --prefix .excellent-nd --skill-confirmed` を実行するとlocal hostnameをtarget IDの既定値にする。hostnameをrepositoryへ載せたくない場合だけ `--execution-target build-public-01` のようなaliasを指定する。`.excellent-nd/targets/*.json` はGit管理し、それ以外の `.excellent-nd/` runtime stateはGit管理外にする。
+- **確認する結果**: `config/runtime-lock.json` の対象 asset と SHA-256 が一致し、host-local `.excellent-nd/host.json` とrepository台帳 `.excellent-nd/targets/<target-id>.json` にtarget identityが保存される。
 - **OK の場合**: 手順 5 へ進む。
 - **NG の場合**: platform、release asset、network を確認し、checksum 不一致なら中止する。
 
@@ -216,4 +216,4 @@ Excellent-Nd のアンインストールは Codex や GitHub 自体の削除を�
 
 ## トラブルシューティング
 
-配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>` とhost-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。秘密情報を診断記録へ貼らないでください。
+配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。秘密情報を診断記録へ貼らないでください。

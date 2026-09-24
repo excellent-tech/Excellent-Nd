@@ -90,4 +90,4 @@ Skill のインストールは **ChatGPT 側の操作規約を有効化するだ
 
 導入、運用、よくある質問、アンインストール、ラベル、`execution_target` は [利用ガイド](docs/operations.md) を、バージョン番号は[バージョン方針](skills/excellent-nd/references/version-policy.md)を参照してください。
 
-検証済みruntimeの導入入口は、非公開repositoryでは `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed` です。public repositoryでは実hostnameを公開しないよう `--execution-target PUBLIC_SAFE_ALIAS` を指定します。各hostは `symphony-ready` と `nd-target:<execution_target>` の両方でTaskをroutingします。起動・smoke・停止は[利用ガイド](docs/operations.md)を参照してください。
+検証済みruntimeの導入入口は `python3 scripts/setup.py --repo OWNER/REPOSITORY --repo-path . --prefix .excellent-nd --skill-confirmed` です。local hostnameをtarget IDの既定値とし、対象repositoryの `.excellent-nd/targets/*.json` に非credentialなtarget台帳を保存します。hostnameを載せたくない場合は `--execution-target ALIAS` を指定できます。各hostは `symphony-ready` と `nd-target:<execution_target>` の両方でTaskをroutingします。起動・smoke・停止は[利用ガイド](docs/operations.md)を参照してください。
