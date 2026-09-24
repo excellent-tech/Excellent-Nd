@@ -6,6 +6,7 @@ tracker:
     token: $GITHUB_TOKEN
   required_labels:
     - symphony-ready
+    - __EXECUTION_TARGET_LABEL__
   active_states:
     - open
   terminal_states:

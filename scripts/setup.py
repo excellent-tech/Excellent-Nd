@@ -13,6 +13,13 @@ import sys
 import urllib.request
 from pathlib import Path
 
+from execution_target import (
+    default_execution_target,
+    normalize_execution_target,
+    render_workflow,
+    routing_label,
+)
+
 
 LABELS = (
     ("symphony-ready", "0E8A16", "Routing / execution control"),
@@ -40,9 +47,22 @@ def sha256(path):
     return result.hexdigest()
 
 
+def repo_visibility(repo):
+    return subprocess.run(
+        ["gh", "repo", "view", repo, "--json", "visibility", "--jq", ".visibility"],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+    ).stdout.strip().lower()
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, help="GitHub owner/repository")
+    parser.add_argument(
+        "--execution-target",
+        help="stable execution target ID; defaults to local hostname for non-public repositories",
+    )
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--skill-confirmed", action="store_true")
     parser.add_argument("--start", action="store_true")
@@ -58,6 +78,20 @@ def main(argv=None):
         if not shutil.which(command):
             parser.error(f"missing prerequisite: {command}")
     subprocess.run(["gh", "auth", "status"], check=True)
+
+    visibility = repo_visibility(args.repo)
+    if args.execution_target is None and visibility == "public":
+        parser.error(
+            "public repository requires --execution-target with a non-sensitive alias; "
+            "refusing to publish the local hostname by default"
+        )
+    try:
+        execution_target = normalize_execution_target(
+            args.execution_target or default_execution_target()
+        )
+    except ValueError as error:
+        parser.error(str(error))
+    target_label = routing_label(execution_target)
 
     manifest = json.loads(args.manifest.read_text())
     asset = manifest["symphony"]["assets"].get(target())
@@ -76,8 +110,23 @@ def main(argv=None):
     runtime.chmod(0o755)
 
     workflow = args.prefix / "WORKFLOW.md"
-    workflow.write_text(args.template.read_text().replace("__REPOSITORY__", args.repo))
-    for name, color, description in LABELS:
+    workflow.write_text(
+        render_workflow(args.template.read_text(), args.repo, execution_target),
+        encoding="utf-8",
+    )
+    host_config = {
+        "schema": "excellent-nd/host@v1",
+        "repository": args.repo,
+        "execution_target": execution_target,
+        "routing_label": target_label,
+    }
+    (args.prefix / "host.json").write_text(
+        json.dumps(host_config, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    labels = LABELS + ((target_label, "5319E7", f"Execution target: {execution_target}"),)
+    for name, color, description in labels:
         subprocess.run(
             ["gh", "label", "create", name, "--repo", args.repo, "--color", color, "--description", description, "--force"],
             check=True,
@@ -85,11 +134,26 @@ def main(argv=None):
 
     smoke = Path(__file__).with_name("smoke.py")
     subprocess.run(
-        [sys.executable, str(smoke), "--manifest", str(args.manifest), "--runtime", str(runtime), "--workflow", str(workflow), "--repo", args.repo],
+        [
+            sys.executable,
+            str(smoke),
+            "--manifest",
+            str(args.manifest),
+            "--runtime",
+            str(runtime),
+            "--workflow",
+            str(workflow),
+            "--repo",
+            args.repo,
+            "--execution-target",
+            execution_target,
+        ],
         check=True,
     )
     observer = Path(__file__).with_name("runtime_observer.py")
     command = [sys.executable, str(observer), "run", "--repo", args.repo, "--workflow", str(workflow), "--symphony", str(runtime)]
+    print("execution target:", execution_target)
+    print("routing label:", target_label)
     print("runtime command:", " ".join(command))
     if args.start:
         os.execv(sys.executable, command)
