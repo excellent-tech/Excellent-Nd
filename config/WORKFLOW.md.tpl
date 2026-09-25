@@ -5,7 +5,7 @@ tracker:
     repo: "__REPOSITORY__"
     token: $GITHUB_TOKEN
   required_labels:
-    - symphony-ready
+    - __ROUTING_LABEL__
     - __EXECUTION_TARGET_LABEL__
   active_states:
     - open

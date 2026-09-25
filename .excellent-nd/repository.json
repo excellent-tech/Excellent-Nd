@@ -1,0 +1,45 @@
+{
+  "schema": "excellent-nd/repository@v1",
+  "issue_integration": {
+    "reviewed": {
+      "labels": true,
+      "issue_templates": true,
+      "automation": true
+    },
+    "issue_templates": {
+      "policy": "preserve"
+    },
+    "labels": {
+      "routing": {
+        "name": "symphony-ready",
+        "management": "excellent-nd"
+      },
+      "status": {
+        "scheduled": {
+          "name": "nd-status:scheduled",
+          "management": "excellent-nd"
+        },
+        "running": {
+          "name": "nd-status:running",
+          "management": "excellent-nd"
+        },
+        "blocked": {
+          "name": "nd-status:blocked",
+          "management": "excellent-nd"
+        },
+        "review": {
+          "name": "nd-status:review",
+          "management": "excellent-nd"
+        },
+        "failed": {
+          "name": "nd-status:failed",
+          "management": "excellent-nd"
+        }
+      },
+      "target": {
+        "prefix": "nd-target:",
+        "management": "excellent-nd"
+      }
+    }
+  }
+}

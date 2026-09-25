@@ -27,12 +27,22 @@ def default_execution_target() -> str:
     return normalize_execution_target(socket.gethostname())
 
 
-def routing_label(value: str) -> str:
-    return TARGET_LABEL_PREFIX + normalize_execution_target(value)
+def routing_label(value: str, prefix: str = TARGET_LABEL_PREFIX) -> str:
+    label = prefix + normalize_execution_target(value)
+    if len(label) > 50:
+        raise ValueError("execution-target routing label exceeds GitHub label limit")
+    return label
 
 
-def render_workflow(template: str, repository: str, execution_target: str) -> str:
+def render_workflow(
+    template: str,
+    repository: str,
+    execution_target: str,
+    routing_label_name: str = "symphony-ready",
+    target_prefix: str = TARGET_LABEL_PREFIX,
+) -> str:
     return (
         template.replace("__REPOSITORY__", repository)
-        .replace("__EXECUTION_TARGET_LABEL__", routing_label(execution_target))
+        .replace("__ROUTING_LABEL__", routing_label_name)
+        .replace("__EXECUTION_TARGET_LABEL__", routing_label(execution_target, target_prefix))
     )

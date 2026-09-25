@@ -1,135 +1,172 @@
 ---
 name: excellent-nd
-description: "Use when ChatGPT上でExcellent-NdのPlan-and-Execute運用、Task Issue作成、Symphony実行、結果取り込み、人間判断ゲート（Human Gate）、host bootstrapまたは引継ぎを扱う。"
+description: "Use when ChatGPT上でExcellent-Ndの導入、repository / GitHub Issue連携、既存label・Issue template・automationとの整合確認、Plan-and-Execute運用、Task Issue作成、Symphony/Codex実行、結果取り込み、人間判断ゲート、execution host bootstrapまたは引継ぎを扱う。"
 ---
 
 # Excellent-Nd
 
-Excellent-NdはオープンソースのAI駆動開発ワークフローである。ChatGPTを計画・判断の主UI、excellent-nd Skillを操作interface、GitHubをDurable Task / checkpoint、Symphonyをexecution orchestration、Codexをexecution workerとして扱う。
+Excellent-NdはオープンソースのAI駆動開発ワークフローである。ChatGPTを計画・判断の主UI、GitHub IssueをDurable Task、Symphonyを実行編成、Codexを実行workerとして扱う。
 
-原則として日本語で応答する。ユーザーが別言語を明示した場合は、その言語を優先する。
-
-このSkillのインストールはChatGPT側のworkflowを有効化するだけであり、Symphony / Codex runtimeの導入完了や1.0.x end-to-end動作確認完了を意味しない。実行環境が未検証の場合は、実装済み・稼働済みのように説明しない。
+原則として日本語で応答する。ユーザーが別言語を明示した場合はその言語を優先する。
 
 ## 基本ルール
 
-1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。片方でも欠ける場合はrouting labelを追加・復元せず、Symphony / Codexを開始しない。
-2. 1つのChatGPTチャットを計画・判断コンテキストとして扱い、そこから1..N Taskへ分岐できる。
-3. 1.0.xでは実行Taskごとに1つのGitHub Issueを作る。通常TaskはIssue → Symphony → Codexで実行する。
-4. 原則として1 Task = 1 Codex threadとする。同一Taskの継続では、利用可能なら同じthreadを再利用する。
-5. ユーザーが明示的にthread分割を指示した場合、contextが信頼できなくなった場合、resumeできない場合は新threadへ引き継ぐ。全文履歴ではなくGit状態とcheckpointを引き継ぐ。
-6. `owner` と `execution_target` を分離して扱う。
-7. `execution_target` はinstall時に確定した安定target IDとし、local hostnameを既定値にする。Issue lifetime中は固定し、移行は後継Issueを作る。hostnameをrepositoryへ載せたくない場合は明示aliasを使える。target台帳は対象repositoryの `.excellent-nd/targets/*.json` を正本とする。詳細は `references/execution-targets.md` を参照する。
-8. 実行結果を既存Chatへ自動pushしない。ユーザーが結果取得・状況確認を指示したときにGitHubのIssue / PR / verificationを取得し、Planへ再統合する。
-9. 独自Runner、DB、scheduler、notification service、Codex App Server clientより、既存のChatGPT / GitHub / Symphony機能を優先する。
-10. credential、token、password、private key、秘密値を共通Skillやtarget台帳へ入れない。hostname、target ID、capacity、verification時刻などroutingに必要な非credential metadataは対象repositoryの台帳へ保存できる。
-11. Symphony未導入hostのruntime bootstrapは通常Taskと区別し、人間による実行承認（Human GO）とIssue記録を維持した限定例外として扱う。
-12. ChatGPTで安全に完結する調査、GitHub更新、小規模な機械的変更、review / result ingestionをCodex dispatchより優先する。Skillの自動選択はdispatch承認ではない。
+1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。
+2. Skillの自動選択はdispatch承認ではない。gate未成立時はPlan、調査、安全なGitHub操作までに留める。
+3. ChatGPTで安全に完結するrepository調査、Issue/PR更新、小規模な設定変更、review、result ingestionをCodex dispatchより優先する。
+4. 1.0.xでは原則1 Task = 1 GitHub Issue = 1 Codex threadとする。同一Taskのcontinuationは同一threadを優先する。
+5. `owner` と `execution_target` を分離する。
+6. 1 Issueのlifetime中は `execution_target` を固定する。host移行はcheckpoint付き後継Issueを作る。
+7. target台帳は対象repositoryの `.excellent-nd/targets/*.json` を正本とし、実マシン数を固定値として扱わない。
+8. credential、token、password、private key、API key等の秘密値をSkill、repository config、target台帳へ保存しない。
+9. 独自Runner、DB、scheduler、notification serviceよりChatGPT / GitHub / Symphonyの既存機能を優先する。
+10. 実行結果を既存Chatへ自動pushしない。ユーザーの結果取得指示時にIssue / PR / verificationを再取得する。
 
-## ワークフロー
+## 導入は3レベルで行う
 
-### 1. Plan
+### Level 1 — Skill導入
 
-ユーザーとPlanを作り、実行Taskを識別する。
+excellent-nd SkillをChatGPTへ導入し、有効であることを確認する。
 
-GO前に、対象repositoryの `.excellent-nd/targets/*.json` が利用できる場合は登録targetを確認する。実マシン数を固定値として扱わない。\n\n最低限以下を提示する。
+Skill導入だけでは対象repositoryのIssue統合もexecution host導入も完了していない。
+
+### Level 2 — Repository / Issue integration
+
+execution hostを導入する前に、対象repositoryをChatGPTから監査する。詳細は `references/repository-onboarding.md` を参照する。
+
+最低限確認する。
+
+- 既存GitHub labelsと意味
+- Issue templates / Issue forms
+- GitHub Actions、bot、automationでIssue/labelを読む・更新する処理
+- 既存のstatus / routing convention
+- 既存 `.excellent-nd/repository.json`
+
+各Excellent-Nd semantic roleについて、次のいずれかを決める。
+
+- 既存labelをreuseする
+- Excellent-Nd専用labelを追加する
+- custom label名へmapする
+- 競合が解消するまでintegrationを保留する
+
+**名前だけで意味を推測して既存labelをreuseしない。** description、実際のIssue利用、workflow/bot設定等から意味を確認する。
+
+承認済みmappingを対象repositoryの `.excellent-nd/repository.json` に保存する。このfileをrepository integrationのSSOTとする。
+
+既存運用がないclean repositoryでは、ユーザーからExcellent-Nd導入指示が明示され、監査で競合が見つからなければ標準mappingを作成してよい。既存運用がある場合は、変更前にmapping proposalを提示して確認する。
+
+Issue templateの変更は必須ではない。ChatGPT-created Excellent-Nd TaskはIssue bodyを直接作成する。既存templateやautomationと矛盾する場合、またはmanual Issue作成もExcellent-Nd形式に統一したい場合だけcustomizeする。
+
+### Level 3 — Execution host導入
+
+`.excellent-nd/repository.json` が存在し、labels / templates / automationのreview済み状態が確認できた場合だけexecution host setupへ進む。
+
+setupはrepository configを読み:
+
+- `management: existing` のlabelは存在を要求し、作成・変更しない
+- `management: excellent-nd` のlabelは不足時だけ作成し、既存labelを上書きしない
+- approved routing label / target prefixからWORKFLOWを生成する
+- configured status labelsをobserver / resume処理でも使用する
+
+repository integration未完了、またはexisting-managed label不足時はfail closedする。
+
+## Plan
+
+GO前に対象repositoryのrepository configとtarget台帳を確認し、最低限以下を提示する。
 
 - Task分割
 - 依存関係
-- owner割当
+- owner
 - 概算負荷配分
 - execution target案
 
-30:70等の比率はTask件数比ではなく、おおよその総作業負荷として解釈する。依存関係、並列実行可否、想定工数を考慮する。
+30:70等はTask件数比ではなく概算総負荷として扱う。
 
-### 2. 人間による実行承認（Human GO）
+## 人間による実行承認（Human GO）
 
-現在のuser messageに `@excellent-nd` と人間による実行承認（Human GO）の両方がある場合だけ、実行対象Issueへrouting条件を追加・復元する。Issue作成をChatGPT側で行う場合も、gate未成立ならdispatchableにしない。
+現在のuser messageに `@excellent-nd` とHuman GOの両方がある場合だけ通常Taskをdispatchableにする。
 
-各Issueには以下を含める。
+Task Issueには:
 
-- 人間が読めるTask説明
-- objective、constraints、acceptance criteria
+- Objective
+- Constraints
+- Acceptance criteria
+- Dependencies / owner
 - relevant decisions / references
-- dependencies、owner
-- `references/task-schema.md` に従うTask control / correlation metadata block
-- 通常Taskでは、利用中のSymphony profileが必要とするrouting label / field
-- routing用 `symphony-ready`、host routing用 `nd-target:<execution_target>`、可視化用 `nd-status:scheduled|running|blocked|review|failed`（原則1つ）
+- `references/task-schema.md` のmachine-readable block
 
-workflow stateは `references/workflow.md` に従う。
+を含める。
 
-### 2a. Bootstrap prerequisite
+routing/status label名は固定値を仮定せず、対象repositoryの `.excellent-nd/repository.json` を読む。
 
-最初のexecution hostにSymphony runtimeがなく、通常経路をまだ利用できない場合だけ、次のbootstrap規約を使う。
+## Execute
 
-1. 人間による実行承認（Human GO）後にGitHub Issueを作り、objective、constraints、acceptance criteria、execution target、verification方法を記録する。
-2. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
-3. Issueを監査可能な作業記録として、対象host上のCodex CLI等から人間が明示的にbootstrapを開始する。
-4. Symphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことまでをsmoke verificationする。
-5. 実測version setとverification結果をIssueへ保存し、bootstrapを完了する。
-6. bootstrap完了後、別の通常Task Issueへrouting条件を適用し、single Task E2Eを実施する。このE2Eはbootstrapのacceptance criteriaに含めない。
+通常Taskはrepository configで定義されたrouting labelとtarget-specific labelの両方を持つ場合だけ対象hostへdispatchする。
 
-この例外を一般的なmanual executionへ拡大しない。2台目以降も、既存のExcellent-Nd / Symphony経路からprovisioningできないhostに限り同じ規約を使い、1.0.xでは自動provisioning機構を作らない。
+WORKFLOWは必ず `{{ issue.description }}` または同等手段でIssue body全体をCodex initial promptへ渡す。
 
-### 3. Execute
-
-通常の実行Taskは、Issueを固定された `execution_target` へroutingし、`symphony-ready` と `nd-target:<execution_target>` の両方を付与した場合だけ対象hostのSymphonyからCodexへ渡す。host profileも同じ2 labelを `required_labels` として要求する。target未確定の通常Taskをdispatchableにしない。
-
-runtime / profileは、initial Codex turnのrendered promptへIssue body由来の `issue.description` を必ず含める。custom `WORKFLOW.md` promptを使う場合も `{{ issue.description }}` または同等の方法でExecution Packet全体をrenderし、titleだけを渡す構成にしない。
-
-以下はSymphonyへ委ねる。
+Symphonyへ委ねる:
 
 - polling
 - workspace lifecycle
-- 一時エラーのretry
+- transient retry
 - Codex App Server起動
-- thread / turn管理
+- thread / turn
 - continuation
 - concurrency
 
-数時間・週次のusage limitを通常の短周期retryで処理しない。account usage枯渇時は `references/workflow.md` のrate-limit方針に従う。
+数時間・週次usage limitを短周期retryで処理しない。
 
-### 4. 保留 / 人間判断ゲート（Human Gate）
+## Bootstrap prerequisite
 
-人間判断が必要な場合:
+最初のhostにSymphonyがなく通常経路を利用できない場合、Human GO後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
 
-- Taskを `blocked` / 保留へ変更する
-- Issue Workpadへ理由、根拠、具体的な質問を保存する
-- そのIssueの `symphony-ready` を外し、実行routingを停止する。`execution_target` と `nd-target:*` はcorrelation用に維持する
-- ユーザーが状況・結果を取得したときに判断事項を提示する
-- ユーザー回答後、決定内容をIssueへ保存し、同じIssueを再度実行可能にする
-- 再開する現在のuser messageで、再度 `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する
-- 同一Codex threadのcontinuationを優先する
+bootstrap前提:
 
-### 5. レビュー
+1. Level 1 Skill導入済み
+2. Level 2 repository integration済み
+3. bootstrap Issueへtarget、verification、constraintsを保存
+4. bootstrap Issue自体は通常routing対象にしない
+5. setup / smoke後にtarget recordをreview・commitする
+6. その後、別の通常Taskでsingle Task E2Eを行う
 
-IssueをTaskのWorkpad / 状態記録として使う。
+## 保留 / 人間判断ゲート
 
-PRをコード変更・レビュー成果物として使う。
+blocked時:
 
-`review` / レビュー状態のTaskには、原則としてPRまたは同等のreview可能な変更参照とverification結果を持たせる。reviewへの状態更新と同じdecision stepで `symphony-ready` を外す。`nd-target:*` は残してよい。
+- 理由、根拠、質問をWorkpadへ保存する
+- workflow statusをblockedへ更新する
+- repository configで定義されたrouting labelを外す
+- target identity labelはcorrelation用に維持できる
+- resumeには再度 `@excellent-nd` + Human GOを要求する
+- 同一Issue / thread continuationを優先する
 
-### 6. 結果取り込み
+## レビュー
 
-ユーザーが「結果を取り込んで」「状況確認して」「担当A/Bの進捗をまとめて」等と指示した場合:
+review状態にはPRまたは同等のreview可能な参照とverificationを持たせる。
 
-1. `plan_ref` と `task_ref` の組、元Planに保存したGitHub Issue URL / numberから関連Task Issueを特定する。
-2. 各Issue Workpadとlinked PRを読む。
-3. test / verification statusと必要なGit事実を取得する。
-4. Task別・owner別に要約する。
-5. Plan全体の進捗、blocker、risk、次の判断を再構成する。
-6. ユーザーが必要としない限りraw log全文を取り込まない。
+reviewへ遷移する同じdecision stepでrepository configのrouting labelを外す。
+
+## 結果取り込み
+
+ユーザーが結果取得を指示したら:
+
+1. plan_ref / task_ref / Issue URLから関連Taskを特定する
+2. Workpad、linked PR、verificationを読む
+3. Task別に進捗・blocker・riskを要約する
+4. 元Planへ再統合する
+5. 必要がなければraw log全文を取り込まない
 
 ## Checkpoint
 
-1.0.xのcheckpointは以下とする。
+- branch / commit / diff: code state
+- PR: review state
+- Issue Workpad: decisions / verification / remaining work / blocker / handoff
 
-- Git branch / commit / diff: コード状態
-- PR: review可能な変更状態
-- Issue Workpad: 判断、完了作業、verification、残作業、blocker、handoff情報
+## References
 
-1.0.xでは別repository artifactや独自DBを必須にしない。
-
-## Version管理
-
-常にlatestへ追従せず、検証済みversion setとして実行stackを扱う。詳細は `references/version-policy.md` を参照する。
+- repository onboarding: `references/repository-onboarding.md`
+- Task schema: `references/task-schema.md`
+- workflow states: `references/workflow.md`
+- execution target inventory: `references/execution-targets.md`
+- version policy: `references/version-policy.md`

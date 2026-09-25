@@ -1,5 +1,6 @@
 import unittest
 
+from scripts.repository_config import default_config
 from scripts.runtime_observer import (
     GitHub,
     classify_interruption,
@@ -11,6 +12,9 @@ from scripts.runtime_observer import (
 
 
 class ObserverTest(unittest.TestCase):
+    def setUp(self):
+        self.config = default_config()
+
     def test_non_transient_usage_limit_is_blocking(self):
         self.assertEqual(
             classify_interruption("account usage limit reached; reset_at=2026-09-22T00:00:00Z"),
@@ -52,25 +56,39 @@ class ObserverTest(unittest.TestCase):
         self.assertNotIn("/home/alice", value)
         self.assertNotIn("user:pass", value)
 
-    def test_status_and_labels_change_together(self):
+    def test_standard_status_and_labels_change_together(self):
         body = '{"workflow_status": "running"}'
         self.assertEqual(set_workflow_status(body, "blocked"), '{"workflow_status": "blocked"}')
         self.assertEqual(
-            next_labels(["bug", "symphony-ready", "nd-status:running"], "blocked"),
+            next_labels(["bug", "symphony-ready", "nd-status:running"], "blocked", self.config),
             ["bug", "nd-status:blocked"],
         )
         self.assertEqual(
-            next_labels(["bug", "nd-status:blocked"], "scheduled"),
+            next_labels(["bug", "nd-status:blocked"], "scheduled", self.config),
             ["bug", "symphony-ready", "nd-status:scheduled"],
+        )
+
+    def test_custom_mapping_is_used(self):
+        config = default_config()
+        config["issue_integration"]["labels"]["routing"]["name"] = "ready-for-ai"
+        config["issue_integration"]["labels"]["status"]["scheduled"]["name"] = "queued"
+        config["issue_integration"]["labels"]["status"]["blocked"]["name"] = "hold"
+        self.assertEqual(
+            next_labels(["bug", "ready-for-ai", "queued"], "blocked", config),
+            ["bug", "hold"],
+        )
+        self.assertEqual(
+            next_labels(["bug", "hold"], "scheduled", config),
+            ["bug", "ready-for-ai", "queued"],
         )
 
     def test_repository_input_is_validated(self):
         with self.assertRaises(ValueError):
-            GitHub("../invalid", token="not-used")
+            GitHub("../invalid", self.config, token="not-used")
 
     def test_review_also_removes_routing(self):
         self.assertEqual(
-            next_labels(["symphony-ready", "nd-status:running"], "review"),
+            next_labels(["symphony-ready", "nd-status:running"], "review", self.config),
             ["nd-status:review"],
         )
 

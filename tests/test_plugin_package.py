@@ -44,12 +44,20 @@ class PluginPackageTest(unittest.TestCase):
 
             with zipfile.ZipFile(first) as archive:
                 names = set(archive.namelist())
-            self.assertIn("plugin.json", names)
-            self.assertIn("skills/excellent-nd/SKILL.md", names)
-            self.assertIn("scripts/setup.py", names)
-            self.assertIn("scripts/execution_target.py", names)
-            self.assertIn("scripts/target_inventory.py", names)
-            self.assertIn("config/runtime-lock.json", names)
+
+            required = {
+                "plugin.json",
+                "skills/excellent-nd/SKILL.md",
+                "skills/excellent-nd/references/repository-onboarding.md",
+                "scripts/setup.py",
+                "scripts/execution_target.py",
+                "scripts/repository_config.py",
+                "scripts/target_inventory.py",
+                "config/WORKFLOW.md.tpl",
+                "config/repository-config.default.json",
+                "config/runtime-lock.json",
+            }
+            self.assertTrue(required.issubset(names), required - names)
             self.assertNotIn("mcp.json", names)
             self.assertNotIn(".mcp.json", names)
             self.assertNotIn(".app.json", names)
