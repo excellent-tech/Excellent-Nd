@@ -6,9 +6,44 @@ from scripts.runtime_observer import (
     classify_interruption,
     extract_context,
     next_labels,
+    runtime_event_for,
     sanitize,
     set_workflow_status,
 )
+
+
+def github_project_config():
+    config = default_config()
+    integration = config["issue_integration"]
+    integration["reviewed"]["project_fields"] = True
+    integration["github_project"] = {"title": "Example Development"}
+    integration["status_integration"] = {
+        "authority": "github-project",
+        "field": "Workflow",
+        "event_mapping": {
+            "execution_started": "Working",
+            "decision_required": "Needs Decision",
+            "external_blocked": "On Hold",
+            "review_ready": "Review",
+            "execution_failed": "On Hold",
+        },
+        "mutable_events": [
+            "execution_started",
+            "decision_required",
+            "external_blocked",
+            "review_ready",
+            "execution_failed",
+        ],
+    }
+    integration["dispatch_gates"] = [{
+        "id": "ready",
+        "source": "github-project-field",
+        "field": "Workflow",
+        "operator": "equals",
+        "value": "Ready",
+    }]
+    integration["labels"].pop("status", None)
+    return config
 
 
 class ObserverTest(unittest.TestCase):
@@ -68,29 +103,27 @@ class ObserverTest(unittest.TestCase):
             ["bug", "symphony-ready", "nd-status:scheduled"],
         )
 
-    def test_custom_mapping_is_used(self):
-        config = default_config()
-        config["issue_integration"]["labels"]["routing"]["name"] = "ready-for-ai"
-        config["issue_integration"]["labels"]["status"]["scheduled"]["name"] = "queued"
-        config["issue_integration"]["labels"]["status"]["blocked"]["name"] = "hold"
+    def test_github_project_authority_never_adds_status_labels(self):
+        config = github_project_config()
         self.assertEqual(
-            next_labels(["bug", "ready-for-ai", "queued"], "blocked", config),
-            ["bug", "hold"],
+            next_labels(["bug", "symphony-ready", "blocked"], "review", config),
+            ["bug", "blocked"],
         )
         self.assertEqual(
-            next_labels(["bug", "hold"], "scheduled", config),
-            ["bug", "ready-for-ai", "queued"],
+            next_labels(["bug"], "scheduled", config),
+            ["bug", "symphony-ready"],
         )
+
+    def test_runtime_event_mapping_does_not_change_core_statuses(self):
+        self.assertEqual(runtime_event_for("blocked", "decision"), "decision_required")
+        self.assertEqual(runtime_event_for("blocked", "external"), "external_blocked")
+        self.assertEqual(runtime_event_for("failed", "external"), "execution_failed")
+        self.assertEqual(runtime_event_for("review", "external"), "review_ready")
+        self.assertIsNone(runtime_event_for("scheduled", "external"))
 
     def test_repository_input_is_validated(self):
         with self.assertRaises(ValueError):
             GitHub("../invalid", self.config, token="not-used")
-
-    def test_review_also_removes_routing(self):
-        self.assertEqual(
-            next_labels(["symphony-ready", "nd-status:running"], "review", self.config),
-            ["nd-status:review"],
-        )
 
 
 if __name__ == "__main__":

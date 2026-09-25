@@ -15,3 +15,14 @@ Existing labels may be reused only when their semantics are verified. `managemen
 Approved mappings are stored in `.excellent-nd/repository.json`. Execution-host setup fails closed until labels, templates, and automation reviews are confirmed.
 
 Existing Issue templates normally remain unchanged because ChatGPT creates the complete Excellent-Nd Issue body directly.
+
+
+## Generic mapping and dispatch gates
+
+Excellent-Nd does not replace a repository's native workflow model. Core states remain `scheduled / running / blocked / review`. Repository-specific field names and status values are configuration.
+
+Use `dispatch_gates[]` to combine GitHub Project fields, labels, and Issue state. Fields such as Agent or Human Approval are optional repository rules, not Excellent-Nd requirements.
+
+For GitHub Project status authority, map Excellent-Nd runtime events to the repository's existing status options with `status_integration.event_mapping`. Only events listed in `mutable_events` may be changed automatically.
+
+The public generic example is `config/repository-config.github-project.example.json`. Do not copy private repository names, internal project titles, or identifying workflow values into public examples, Issues, PRs, or release artifacts.

@@ -15,3 +15,14 @@ Excellent-Nd 的安装分为三个层级：
 确认后的mapping保存在 `.excellent-nd/repository.json`。labels、Issue templates、automation 尚未确认时，execution-host setup 必须 fail closed。
 
 ChatGPT 创建 Excellent-Nd Task 时会直接生成完整 Issue body，因此通常不需要修改既有 Issue template。
+
+
+## 通用 mapping 与 dispatch gates
+
+Excellent-Nd 不替换目标仓库原有的状态模型。Core 保持 `scheduled / running / blocked / review`，仓库特有的字段名和状态值全部通过配置适配。
+
+`dispatch_gates[]` 可以组合 GitHub Project Field、label 和 Issue state。Agent、Human Approval 等字段只在需要它们的仓库中配置，不是 Excellent-Nd 的固定要求。
+
+当 GitHub Project 是状态正本时，用 `status_integration.event_mapping` 将 Excellent-Nd runtime event 映射到仓库已有的状态值，并且只允许 `mutable_events` 中列出的事件自动更新。
+
+公开通用示例为 `config/repository-config.github-project.example.json`。不要把 private repository 名称、内部 Project title 或可识别的工作流字段值复制到 public repository 的示例、Issue、PR 或 release artifact 中。

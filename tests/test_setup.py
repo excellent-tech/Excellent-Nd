@@ -18,6 +18,7 @@ class SetupImportTest(unittest.TestCase):
         self.assertTrue(callable(MODULE.write_target_record))
         self.assertTrue(callable(MODULE.load_repository_config))
         self.assertTrue(callable(MODULE.plan_label_actions))
+        self.assertTrue(callable(MODULE.status_authority))
 
 
 if __name__ == "__main__":

@@ -12,7 +12,16 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from repository_config import read_config, routing_name, status_name, status_names
+from repository_adapter import preflight as repository_preflight
+from repository_adapter import transition_event
+from repository_config import (
+    dispatch_gates,
+    read_config,
+    routing_name,
+    status_authority,
+    status_name,
+    status_names,
+)
 
 BLOCKING_PATTERNS = (
     ("turn_timeout", re.compile(r"(turn timeout|turn timed out)", re.I)),
@@ -72,12 +81,28 @@ def set_workflow_status(body, status):
 
 def next_labels(labels, status, config):
     route = routing_name(config)
+    if status_authority(config) == "github-project":
+        kept = [label for label in labels if label != route]
+        if status == "scheduled":
+            kept.append(route)
+        return kept
+
     configured_statuses = status_names(config)
     kept = [label for label in labels if label != route and label not in configured_statuses]
     if status == "scheduled":
         kept.append(route)
     kept.append(status_name(config, status))
     return kept
+
+
+def runtime_event_for(status, block_kind):
+    if status == "review":
+        return "review_ready"
+    if status == "failed":
+        return "execution_failed"
+    if status == "blocked":
+        return "decision_required" if block_kind == "decision" else "external_blocked"
+    return None
 
 
 class GitHub:
@@ -109,17 +134,36 @@ class GitHub:
             detail = error.read().decode(errors="replace")
             raise RuntimeError(f"GitHub API {error.code}: {sanitize(detail)}") from error
 
-    def transition(self, number, status, comment):
+    def transition(self, number, status, comment, block_kind="external"):
+        if status == "scheduled" and dispatch_gates(self.config):
+            check = repository_preflight(self.repo, number, self.config)
+            if check["result"] != "PASS":
+                raise RuntimeError(
+                    "resume STOP: repository dispatch gates failed: "
+                    + "; ".join(check["reasons"])
+                )
+
         issue = self.request("GET", f"/issues/{number}")
         labels = [item["name"] for item in issue.get("labels", [])]
+
+        # Routing is disabled before repository-native status transitions. If a
+        # downstream mapping update fails, the task remains non-dispatchable.
         self.request(
             "PATCH",
             f"/issues/{number}",
             {
-                "body": set_workflow_status(issue["body"], "blocked" if status == "failed" else status),
+                "body": set_workflow_status(
+                    issue["body"], "blocked" if status == "failed" else status
+                ),
                 "labels": next_labels(labels, status, self.config),
             },
         )
+
+        if status_authority(self.config) == "github-project":
+            event = runtime_event_for(status, block_kind)
+            if event is not None:
+                transition_event(self.repo, number, event, self.config)
+
         self.request("POST", f"/issues/{number}/comments", {"body": comment})
 
 
@@ -139,7 +183,7 @@ def interruption_workpad(category, line, context):
 - attempt: `{shown(context["attempt"])}`
 - last checkpoint (branch / commit / PR): 取得不能（runtime event に非搭載）。既存 Workpad / PR を確認する。
 - remaining work: interruption 発生時点の Acceptance criteria 未完了項目を確認する。
-- recommended resume condition: 原因を解消し、現在の user message で明示的な `@excellent-nd` と人間による実行承認（Human GO）を確認する。
+- recommended resume condition: repository-native gatesを満たした後、現在の user message で明示的な `@excellent-nd` と人間による実行承認（Human GO）を確認する。
 
 Error text is sanitized. Raw logs and credentials are not copied here.
 """
@@ -163,8 +207,10 @@ def run_observer(args):
         key = (context["issue_number"], category)
         if category and context["issue_number"] and key not in recorded:
             github.transition(
-                context["issue_number"], "blocked",
+                context["issue_number"],
+                "blocked",
                 interruption_workpad(category, line, context),
+                block_kind="external",
             )
             recorded.add(key)
     return process.wait()
@@ -205,6 +251,7 @@ def main(argv=None):
     state.add_argument("--repo", required=True)
     state.add_argument("--issue", type=int, required=True)
     state.add_argument("--status", choices=("blocked", "review", "failed"), required=True)
+    state.add_argument("--block-kind", choices=("decision", "external"), default="external")
     state.add_argument("--reason", required=True)
     add_repository_config_argument(state)
 
@@ -217,9 +264,18 @@ def main(argv=None):
     if args.command == "resume":
         if not (args.explicit_mention and args.human_go):
             parser.error("resume requires --explicit-mention and --human-go")
-        github.transition(args.issue, "scheduled", decision_comment("Resume decision", args.reason))
+        github.transition(
+            args.issue,
+            "scheduled",
+            decision_comment("Resume decision", args.reason),
+        )
     else:
-        github.transition(args.issue, args.status, decision_comment("State decision", args.reason))
+        github.transition(
+            args.issue,
+            args.status,
+            decision_comment("State decision", args.reason),
+            block_kind=args.block_kind,
+        )
     return 0
 
 

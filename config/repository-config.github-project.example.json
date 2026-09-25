@@ -1,0 +1,68 @@
+{
+  "schema": "excellent-nd/repository@v1",
+  "issue_integration": {
+    "reviewed": {
+      "labels": true,
+      "issue_templates": true,
+      "automation": true,
+      "project_fields": true
+    },
+    "issue_templates": {
+      "policy": "preserve"
+    },
+    "github_project": {
+      "title": "Example Development"
+    },
+    "status_integration": {
+      "authority": "github-project",
+      "field": "Workflow Status",
+      "event_mapping": {
+        "execution_started": "In Progress",
+        "decision_required": "Needs Decision",
+        "external_blocked": "On Hold",
+        "review_ready": "Review",
+        "execution_failed": "On Hold"
+      },
+      "mutable_events": [
+        "execution_started",
+        "decision_required",
+        "external_blocked",
+        "review_ready",
+        "execution_failed"
+      ]
+    },
+    "dispatch_gates": [
+      {
+        "id": "ready",
+        "source": "github-project-field",
+        "field": "Workflow Status",
+        "operator": "equals",
+        "value": "Ready"
+      },
+      {
+        "id": "not-blocked",
+        "source": "label",
+        "operator": "absent",
+        "values": [
+          "blocked"
+        ]
+      },
+      {
+        "id": "issue-open",
+        "source": "issue-state",
+        "operator": "equals",
+        "value": "open"
+      }
+    ],
+    "labels": {
+      "routing": {
+        "name": "symphony-ready",
+        "management": "excellent-nd"
+      },
+      "target": {
+        "prefix": "nd-target:",
+        "management": "excellent-nd"
+      }
+    }
+  }
+}\n

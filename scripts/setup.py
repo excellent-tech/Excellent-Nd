@@ -20,6 +20,7 @@ from repository_config import (
     plan_label_actions,
     routing_name,
     target_prefix,
+    status_authority,
 )
 from target_inventory import write_target_record
 
@@ -149,6 +150,7 @@ def main(argv=None):
         "routing_label": route_label,
         "target_label": target_label,
         "repository_config": str(config_path(repo_root).relative_to(repo_root)),
+        "status_authority": status_authority(repository_config),
     }
     (args.prefix / "host.json").write_text(
         json.dumps(host_config, indent=2, sort_keys=True) + "\n",

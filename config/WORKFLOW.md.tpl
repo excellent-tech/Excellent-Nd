@@ -32,3 +32,4 @@ You are working on {{ issue.identifier }}.
 {{ issue.description }}
 
 Work only on the approved Issue scope. Preserve verification evidence and report blockers rather than guessing.
+Repository-native Project fields, approval gates, dependency checks, and execution/resource locks remain authoritative; routing labels alone are never authorization to bypass them.

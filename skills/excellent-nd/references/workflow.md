@@ -28,7 +28,7 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 | `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |
 | GitHub native state | active / terminalの判定 |
 | configured routing label | routing / 実行可否。status表示には使わない |
-| configured status labels | Issue一覧の可視化。実行制御には使わない |
+| configured status representation | label authorityでは可視化label。GitHub Project authorityではProject Statusが正本 |
 | execution-target identity | routing先の識別。blocked中も変更しない |
 
 running中にstatus表示目的で configured routing label を外さない。Codex turn前failure等は自動更新主体がない場合があり、log / Workpad / Resultを根拠に人間またはChatGPTがfailed / blockedを更新する。customizeは `docs/operations.md` を参照する。
@@ -81,3 +81,20 @@ running中にstatus表示目的で configured routing label を外さない。Co
 - 人間が後から明示的に再開する。
 
 1.0.xでは独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。
+
+
+## Generic repository authority / dispatch gates
+
+Excellent-Nd Coreのactive workflow stateは `scheduled / running / blocked / review` を維持する。repository固有のStatus名・Field名をCore semanticへ追加しない。
+
+repositoryごとの `dispatch_gates[]` をrouting前にfail-closed評価する。gate sourceはGitHub Project Field、label、Issue stateを組み合わせられる。特定の `Status / Agent / Human Approval` Fieldを必須とはしない。
+
+GitHub Projectを状態正本にするrepositoryでは:
+- status labelを生成しない
+- runtime eventを `event_mapping` で既存Status optionへ変換する
+- blocked / review時は先にroutingを外し、その後mapping済みeventを更新する
+- mapping/update失敗時もroutingはOFFのままにする
+
+resumeでは、repository側のready条件をExcellent-Ndが勝手に作らない。人間または既存automationがrepository-native条件を整えた後、generic preflightを再実行し、全gate PASS後だけroutingを復元する。
+
+個別repository固有の状態体系・Field名・approval規則はExcellent-Nd Coreへhard-codeせず、対象repositoryのconfigだけで扱う。private repository固有情報をpublic artifactへ複製しない。
