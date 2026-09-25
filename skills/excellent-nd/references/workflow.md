@@ -13,25 +13,25 @@
 
 `workflow_status` はExcellent-Ndと人間向けの論理状態であり、それ自体はSymphonyをdispatch / stopさせない。
 
-Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。通常Taskでは `symphony-ready` に加え、host-specificな `nd-target:<execution_target>` を要求する。可視化用は `nd-status:scheduled|running|blocked|review|failed`（原則1つ）とする。
+Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。通常Taskでは対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelとhost-specific target labelを要求する。可視化用status labelsもrepository configのmappingを正本とする。標準値は configured routing label / `nd-target:*` / `nd-status:*` だが、固定値として扱わない。
 
 ## 明示的dispatch gate
 
 通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` と、同じmessageまたは同一決定文脈の人間による実行承認（Human GO）の両方を要求する。Skillの自動選択はgateを満たさない。片方でも欠ければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
 
-`review` / `blocked`への遷移は、状態更新と同じIssue updateで `symphony-ready`を外す。再開時は両gateを再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
+`review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。再開時は両gateを再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
-通常Task用profileは `symphony-ready` とhost-specific `nd-target:<execution_target>` の両方をexecution-control条件として要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。target候補は対象repositoryの `.excellent-nd/targets/*.json` を参照し、固定的な台数を仮定しない。
+通常Task用profileはrepository configのrouting labelとhost-specific target labelの両方をexecution-control条件として要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。target候補は対象repositoryの `.excellent-nd/targets/*.json` を参照し、固定的な台数を仮定しない。
 
 | 情報 | 責務 |
 | --- | --- |
 | `workflow_status` | 人間向け表示、結果取り込み、論理的な進捗 |
 | GitHub native state | active / terminalの判定 |
-| `symphony-ready` | routing / 実行可否。status表示には使わない |
-| `nd-status:*` | Issue一覧の可視化。実行制御には使わない |
+| configured routing label | routing / 実行可否。status表示には使わない |
+| configured status labels | Issue一覧の可視化。実行制御には使わない |
 | execution-target identity | routing先の識別。blocked中も変更しない |
 
-running中にstatus表示目的で `symphony-ready` を外さない。Codex turn前failure等は自動更新主体がない場合があり、log / Workpad / Resultを根拠に人間またはChatGPTがfailed / blockedを更新する。customizeは `docs/operations.md` を参照する。
+running中にstatus表示目的で configured routing label を外さない。Codex turn前failure等は自動更新主体がない場合があり、log / Workpad / Resultを根拠に人間またはChatGPTがfailed / blockedを更新する。customizeは `docs/operations.md` を参照する。
 
 ## Continuation
 

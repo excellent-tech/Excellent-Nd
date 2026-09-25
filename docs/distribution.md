@@ -74,3 +74,14 @@ Public PluginとGitHub Releaseは同じsource revisionから生成し、内容�
 1 repositoryを複数execution hostで安全に処理するには、各hostのprofileが `symphony-ready` と固有の `nd-target:<execution_target>` を両方要求する。install時target IDはlocal hostnameを既定値にする。hostnameをrepositoryへ載せたくない場合は明示aliasを使える。対象repositoryの `.excellent-nd/targets/*.json` をGit管理し、登録hostをChatGPT / Human / Codexが共通参照する。台帳にcredentialやsecretは保存しない。
 
 別マシン検証では、同一repositoryを2 profileで監視してもtarget不一致のhostがTaskを取得しないnegative testを含める。
+
+
+## 3-level installation
+
+Public distribution must explain three independent installation levels:
+
+1. ChatGPT Skill
+2. Repository / Issue integration
+3. Execution host runtime
+
+Level 2 is Chat-first. The target repository is audited for existing labels, Issue templates/forms, and automation before `.excellent-nd/repository.json` is created. Execution-host setup fails closed without an approved repository config. Existing labels are never overwritten by setup.

@@ -4,6 +4,13 @@
 
 This guide is for operators installing, running, and disabling Excellent-Nd. See the [version policy](../skills/excellent-nd/references/version-policy.md) for numbering rules and the current candidate.
 
+
+## Three installation levels
+
+Configure Excellent-Nd in this order: **Skill → Repository / Issue integration → Execution host**. See [Repository / Issue integration](repository-onboarding.en.md).
+
+Do not start execution-host setup until `.excellent-nd/repository.json` records a completed review of labels, Issue templates, and automation. Prefer asking ChatGPT to audit the repository and propose the mapping.
+
 ## Installation
 
 ### 1. Check prerequisites
@@ -24,7 +31,7 @@ This guide is for operators installing, running, and disabling Excellent-Nd. See
 
 > **Illustration candidate 1**: Capture the ChatGPT Skill list with `excellent-nd` selectable. Show the name and enabled state; do not show conversations, tokens, account details, or private URLs.
 
-### 3. Prepare GitHub
+### 3. Configure Repository / Issue integration
 
 - **Action**: Configure the target repository and authentication.
 - **Command / UI**: Grant a GitHub App or official integration minimum permissions for Issues, labels, branches, and PRs. Store secrets in the host secret store.

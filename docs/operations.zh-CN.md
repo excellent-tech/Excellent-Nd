@@ -4,6 +4,13 @@
 
 本指南面向安装、运行和停用 Excellent-Nd 的操作者。版本编号规则和当前候选版本请参阅[版本方针](../skills/excellent-nd/references/version-policy.md)。
 
+
+## 三层安装
+
+Excellent-Nd 按 **Skill → Repository / Issue 集成 → Execution host** 的顺序配置。参阅 [Repository / Issue 集成](repository-onboarding.zh-CN.md)。
+
+在 `.excellent-nd/repository.json` 确认 labels、Issue templates 与 automation 的审查完成之前，不进入执行主机安装。优先让 ChatGPT 审计仓库并提出mapping方案。
+
 ## 安装
 
 ### 1. 确认前提条件
@@ -24,7 +31,7 @@
 
 > **插图候选 1**：截取 ChatGPT Skill 列表中可选择 `excellent-nd` 的画面。只显示名称和启用状态；不要显示聊天内容、令牌、账号信息或内部 URL。
 
-### 3. 准备 GitHub
+### 3. 配置 Repository / Issue 集成
 
 - **要执行的操作**：配置目标仓库与认证。
 - **命令 / 界面操作**：通过 GitHub App 或官方集成授予 Issue、标签、分支和 PR 所需的最小权限，把秘密值保存在密钥存储中。

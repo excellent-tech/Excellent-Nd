@@ -4,6 +4,13 @@
 
 このガイドは、Excellent-Nd を導入・運用・停止する作業者向けの手順書です。バージョン番号の規則と現在の候補版は[バージョン方針](../skills/excellent-nd/references/version-policy.md)を参照してください。
 
+
+## 導入の3レベル
+
+Excellent-Ndは **Skill導入 → Repository / Issue連携 → Execution host導入** の順で設定する。Level 2の詳細は [Repository / Issue連携](repository-onboarding.md) を参照する。
+
+Execution host setupは `.excellent-nd/repository.json` がreview済みでない場合は開始しない。既存labelsやautomationがあるrepositoryでは、ChatGPTに監査とmapping proposal作成を依頼し、確認後に設定する。
+
 ## インストール
 
 ### 1. 前提条件を確認する
@@ -24,13 +31,13 @@
 
 > **挿図候補 1**: ChatGPT の Skill 一覧で `excellent-nd` を選択できる画面を撮る。名称と有効状態が見えていればよい。会話内容、トークン、アカウント情報、非公開 URL は写さない。
 
-### 3. GitHub を準備する
+### 3. Repository / Issue連携をChatGPTから設定する
 
-- **操作すること**: 対象リポジトリと認証を設定する。
+- **操作すること**: 対象repositoryの認証を確認し、既存labels、Issue templates/forms、GitHub Actions/botを監査して `.excellent-nd/repository.json` を作成・確認する。
 - **コマンド / UI 操作**: GitHub App または公式連携へ、Issue・ラベル・ブランチ・PR に必要な最小権限を与える。秘密値はホストの秘密情報ストアへ保存する。
-- **確認する結果**: テスト用 Issue の読み書きと、必要なブランチ・PR 操作が許可される。
+- **確認する結果**: GitHub操作権限があり、labels / templates / automationのreviewが完了し、承認済みlabel mappingが `.excellent-nd/repository.json` に保存される。
 - **OK の場合**: 手順 4 へ進む。
-- **NG の場合**: GitHub 側のインストール先、権限、リポジトリ選択を修正する。秘密値を Issue やログへ貼らない。
+- **NG の場合**: 権限または既存Issue運用との矛盾を解消する。意味不明な既存labelを名前だけでreuseせず、Level 3へ進まない。
 
 ### 4. 検証済み runtime を取得する
 
@@ -51,7 +58,7 @@
 ### 6. WORKFLOW と GitHub Issues adapter を確認する
 
 - **操作すること**: 生成された `.excellent-nd/WORKFLOW.md` を確認する。
-- **コマンド / UI 操作**: repository、`required_labels` に `symphony-ready` とこのhostの `nd-target:<execution_target>` があること、`{{ issue.description }}`、workspace、Codex policy を確認する。
+- **コマンド / UI 操作**: repository、`required_labels` にrepository configで承認されたrouting labelとこのhostのtarget labelがあること、`{{ issue.description }}`、workspace、Codex policy を確認する。
 - **確認する結果**: Issue body 全体が最初の prompt へ渡り、対象外 Issue は配信されない。
 - **OK の場合**: 手順 7 へ進む。
 - **NG の場合**: template を修正して再生成する。title だけを渡す profile は使わない。
