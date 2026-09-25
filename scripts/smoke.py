@@ -11,6 +11,7 @@ import subprocess
 from pathlib import Path
 
 from execution_target import normalize_execution_target, routing_label
+from repository_config import read_config, routing_name, target_prefix
 
 
 def target():
@@ -45,10 +46,13 @@ def main(argv=None):
     parser.add_argument("--workflow", type=Path, required=True)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--execution-target", required=True)
+    parser.add_argument("--repository-config", type=Path, required=True)
     args = parser.parse_args(argv)
 
+    config = read_config(args.repository_config)
     execution_target = normalize_execution_target(args.execution_target)
-    target_label = routing_label(execution_target)
+    route_label = routing_name(config)
+    target_label = routing_label(execution_target, target_prefix(config))
     manifest = json.loads(args.manifest.read_text())
     asset = manifest["symphony"]["assets"][target()]
     require(digest(args.runtime) == asset["sha256"], "Symphony checksum mismatch")
@@ -57,11 +61,12 @@ def main(argv=None):
     command("gh", "auth", "status")
     workflow = args.workflow.read_text()
     require("__REPOSITORY__" not in workflow, "WORKFLOW repository placeholder was not rendered")
-    require("__EXECUTION_TARGET_LABEL__" not in workflow, "WORKFLOW execution target placeholder was not rendered")
+    require("__ROUTING_LABEL__" not in workflow, "WORKFLOW routing placeholder was not rendered")
+    require("__EXECUTION_TARGET_LABEL__" not in workflow, "WORKFLOW target placeholder was not rendered")
     require(args.repo in workflow, "WORKFLOW repository mismatch")
     require("{{ issue.description }}" in workflow, "WORKFLOW omits issue.description")
-    require("symphony-ready" in workflow, "WORKFLOW omits routing label")
-    require(target_label in workflow, "WORKFLOW omits execution-target routing label")
+    require(route_label in workflow, "WORKFLOW omits configured routing label")
+    require(target_label in workflow, "WORKFLOW omits configured target label")
     require("approval_policy: never" in workflow, "WORKFLOW approval policy mismatch")
     require(os.access(args.runtime, os.X_OK), "Symphony binary is not executable")
     print("readiness: PASS")

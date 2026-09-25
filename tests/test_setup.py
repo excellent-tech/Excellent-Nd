@@ -14,8 +14,10 @@ SPEC.loader.exec_module(MODULE)
 
 
 class SetupImportTest(unittest.TestCase):
-    def test_target_inventory_writer_is_available(self):
+    def test_required_helpers_are_available(self):
         self.assertTrue(callable(MODULE.write_target_record))
+        self.assertTrue(callable(MODULE.load_repository_config))
+        self.assertTrue(callable(MODULE.plan_label_actions))
 
 
 if __name__ == "__main__":

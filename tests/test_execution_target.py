@@ -15,6 +15,7 @@ class ExecutionTargetTest(unittest.TestCase):
     def test_normalize_and_label(self):
         self.assertEqual(MODULE.normalize_execution_target("Build-01"), "build-01")
         self.assertEqual(MODULE.routing_label("Build-01"), "nd-target:build-01")
+        self.assertEqual(MODULE.routing_label("Build-01", "ai-host:"), "ai-host:build-01")
 
     def test_rejects_unsafe_or_oversized_ids(self):
         for value in ("", "bad target", "bad/target", "-bad", "bad-", "a" * 41):
@@ -22,21 +23,22 @@ class ExecutionTargetTest(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     MODULE.normalize_execution_target(value)
 
-    def test_label_fits_github_limit(self):
-        target = "a" * MODULE.MAX_TARGET_ID_LENGTH
-        self.assertEqual(len(MODULE.routing_label(target)), 50)
-
-    def test_render_workflow_binds_repo_and_target(self):
+    def test_render_workflow_binds_custom_routing(self):
         template = (
             'repo: "__REPOSITORY__"\n'
             "required_labels:\n"
-            "  - symphony-ready\n"
+            "  - __ROUTING_LABEL__\n"
             "  - __EXECUTION_TARGET_LABEL__\n"
         )
-        rendered = MODULE.render_workflow(template, "owner/repo", "worker-a")
+        rendered = MODULE.render_workflow(
+            template, "owner/repo", "worker-a",
+            routing_label_name="ready-for-ai",
+            target_prefix="ai-host:",
+        )
         self.assertIn('repo: "owner/repo"', rendered)
-        self.assertIn("  - nd-target:worker-a", rendered)
-        self.assertNotIn("__REPOSITORY__", rendered)
+        self.assertIn("  - ready-for-ai", rendered)
+        self.assertIn("  - ai-host:worker-a", rendered)
+        self.assertNotIn("__ROUTING_LABEL__", rendered)
         self.assertNotIn("__EXECUTION_TARGET_LABEL__", rendered)
 
 

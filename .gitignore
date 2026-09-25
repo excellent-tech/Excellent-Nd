@@ -8,31 +8,20 @@
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
 *.coverprofile
 profile.cov
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
-# Go workspace file
 go.work
 go.work.sum
-
-# env file
 .env
 
-# Editor/IDE
-# .idea/
-# .vscode/
-
-# Host-local Excellent-Nd runtime
-.excellent-nd/
+# Excellent-Nd: track repository integration + target inventory; ignore host-local runtime.
+.excellent-nd/*
+!.excellent-nd/repository.json
+!.excellent-nd/targets/
+!.excellent-nd/targets/*.json
 
 # Generated distribution artifacts
 dist/
