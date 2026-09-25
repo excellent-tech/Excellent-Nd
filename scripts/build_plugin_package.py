@@ -17,12 +17,15 @@ REQUIRED_FILES = (
     "skills/excellent-nd/references/task-schema.md",
     "skills/excellent-nd/references/version-policy.md",
     "skills/excellent-nd/references/workflow.md",
+    "skills/excellent-nd/references/repository-onboarding.md",
     "scripts/setup.py",
     "scripts/execution_target.py",
+    "scripts/repository_config.py",
     "scripts/target_inventory.py",
     "scripts/smoke.py",
     "scripts/runtime_observer.py",
     "config/WORKFLOW.md.tpl",
+    "config/repository-config.default.json",
     "config/runtime-lock.json",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
@@ -32,10 +35,12 @@ PACKAGE_ROOTS = (
     Path("skills/excellent-nd"),
     Path("scripts/setup.py"),
     Path("scripts/execution_target.py"),
+    Path("scripts/repository_config.py"),
     Path("scripts/target_inventory.py"),
     Path("scripts/smoke.py"),
     Path("scripts/runtime_observer.py"),
     Path("config/WORKFLOW.md.tpl"),
+    Path("config/repository-config.default.json"),
     Path("config/runtime-lock.json"),
     Path("LICENSE"),
     Path("THIRD_PARTY_NOTICES.md"),
@@ -99,11 +104,7 @@ def build_package(root: Path, output: Path) -> str:
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=ROOT / "dist" / "excellent-nd-plugin.zip",
-    )
+    parser.add_argument("--output", type=Path, default=ROOT / "dist" / "excellent-nd-plugin.zip")
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args(argv)
 
