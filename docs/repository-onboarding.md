@@ -86,3 +86,35 @@ python3 scripts/repository_config.py validate --repo-root .
 ```
 
 詳しい仕様はSkillの `references/repository-onboarding.md` を参照する。
+
+
+
+
+## 汎用mapping / gate engine
+
+Excellent-Ndは対象repositoryの状態体系を自分の標準状態へ置換しない。
+
+Core側は `scheduled / running / blocked / review` を維持し、repository固有のStatus名は設定で吸収する。
+
+GitHub Projectを状態正本にする場合は:
+- `status_integration.authority = github-project`
+- 状態Field名を `status_integration.field` に指定
+- Excellent-Nd runtime eventから既存optionへの対応を `event_mapping` に指定
+- 自動更新可能なeventだけ `mutable_events` に指定
+
+dispatch条件は `dispatch_gates[]` へ独立して定義する。Project Field / label / Issue stateを組み合わせられ、AgentやHuman Approvalの有無をExcellent-Nd側で固定しない。
+
+公開用generic example:
+`config/repository-config.github-project.example.json`
+
+private repository固有のrepository名、Project title、内部Field値・Status値はpublic repositoryのexample、Issue、PR、release artifactへ転記しない。必要な検証はprivate側の `.excellent-nd/repository.json` で行う。
+
+preflight:
+
+```bash
+python3 scripts/repository_adapter.py \
+  --repository-config .excellent-nd/repository.json \
+  preflight --repo OWNER/REPOSITORY --issue ISSUE_NUMBER
+```
+
+Project item/field取得不能、0件/複数件、paginationで完全性を証明できない場合、gate不一致はすべてSTOPする。

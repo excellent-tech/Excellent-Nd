@@ -63,11 +63,11 @@ Execution host setupは `.excellent-nd/repository.json` がreview済みでない
 - **OK の場合**: 手順 7 へ進む。
 - **NG の場合**: template を修正して再生成する。title だけを渡す profile は使わない。
 
-### 7. routing とステータスのラベルを確認する
+### 7. routing と状態authorityを確認する
 
-- **操作すること**: setup が作成・更新したラベルを確認する。
-- **コマンド / UI 操作**: GitHub で `symphony-ready` と5つの `nd-status:*` を確認する。
-- **確認する結果**: routing と可視化の責務が分離されている。
+- **操作すること**: repository configのstatus authorityと、setupが作成したexecution-control metadataを確認する。
+- **コマンド / UI 操作**: label authorityではconfigured status labelsを確認する。GitHub Project authorityではrouting / target labelだけを確認し、`python3 scripts/repository_adapter.py --repository-config .excellent-nd/repository.json preflight --repo OWNER/REPOSITORY --issue ISSUE_NUMBER` でrepository固有のgeneric dispatch gatesを検証する。Agent / Human Approval等は設定された場合だけ評価する。
+- **確認する結果**: status authorityが既存repositoryの正本と一致し、Project authorityでは`nd-status:*`が作成されていない。
 - **OK の場合**: 手順 8 へ進む。
 - **NG の場合**: 権限、名称、profile の `required_labels` を一致させる。
 
@@ -186,7 +186,7 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 
 公開リポジトリで非公開・内部 hostname がインフラ情報を漏らす場合は、`build-public-01` のような機密でない hostname または公開 alias を使い、対応表を公開物の外に保持します。既存 Issue の `execution_target` は書き換えません。
 
-## ステータスラベル
+## ステータス表現\n\n`status_integration.authority=labels` のrepositoryでは以下のstatus labelsを利用できる。`authority=github-project` では既存Project Fieldが正本であり、`nd-status:*`を生成しない。\n\n### Label authority
 
 | ラベル | 色 | 説明 |
 | --- | --- | --- |

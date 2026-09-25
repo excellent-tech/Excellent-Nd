@@ -52,9 +52,12 @@ class PluginPackageTest(unittest.TestCase):
                 "scripts/setup.py",
                 "scripts/execution_target.py",
                 "scripts/repository_config.py",
+                "scripts/repository_adapter.py",
+                "scripts/project_adapter.py",
                 "scripts/target_inventory.py",
                 "config/WORKFLOW.md.tpl",
                 "config/repository-config.default.json",
+                "config/repository-config.github-project.example.json",
                 "config/runtime-lock.json",
             }
             self.assertTrue(required.issubset(names), required - names)

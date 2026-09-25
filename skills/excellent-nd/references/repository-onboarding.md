@@ -175,3 +175,133 @@ Excellent-Ndは既存Issue process全体を置換しない。
 - existing-managed labelが存在しない
 - semantic rolesが同じlabelへ重複mappingされている
 - target prefixが不正
+
+
+## 汎用repository mapping / dispatch gate
+
+Excellent-Nd Coreのactive workflow stateは `scheduled / running / blocked / review` のまま維持する。既存repositoryのStatus名や追加状態をCoreへ取り込まない。
+
+repository固有の運用は `.excellent-nd/repository.json` でadapter設定する。
+
+### Status authority
+
+- `authority: labels`: configured status labelsを使う。
+- `authority: github-project`: GitHub Projectの指定Fieldを状態正本とし、`nd-status:*`を生成しない。
+
+GitHub Project authorityでは、Excellent-Nd runtime eventを既存Status optionへ `event_mapping` する。
+
+runtime event:
+- `execution_started`
+- `decision_required`
+- `external_blocked`
+- `review_ready`
+- `execution_failed`
+
+これらはExcellent-Ndの管理Statusを増やすものではなく、repository-native stateへ反映するadapter eventである。
+
+### Generic dispatch gates
+
+dispatch可能条件を固定のField名へhard-codeしない。`dispatch_gates[]` にrepositoryごとの条件を書く。
+
+対応source:
+- `github-project-field`
+- `label`
+- `issue-state`
+
+GitHub Project Field operators:
+- `equals`
+- `not-equals`
+- `in`
+- `not-in`
+
+Label operators:
+- `present`
+- `absent`
+
+Issue state operators:
+- `equals`
+- `in`
+
+例:
+
+```json
+{
+  "dispatch_gates": [
+    {
+      "id": "ready",
+      "source": "github-project-field",
+      "field": "Workflow Status",
+      "operator": "equals",
+      "value": "Ready"
+    },
+    {
+      "id": "not-blocked",
+      "source": "label",
+      "operator": "absent",
+      "values": ["blocked"]
+    }
+  ]
+}
+```
+
+AgentやHuman Approval等は必要なrepositoryだけgateとして追加する。存在しないrepositoryへ必須Fieldとして要求しない。
+
+### Fail closed
+
+以下はPASSへ推測変換しない。
+
+- required Project itemが0件または複数件
+- Project item / field / label取得がpaginationされ、完全性を証明できない
+- gateが参照するProject Fieldが存在しない、または値が取得不能
+- gate条件不一致
+
+### Preflight
+
+```bash
+python3 scripts/repository_adapter.py \
+  --repository-config .excellent-nd/repository.json \
+  preflight \
+  --repo OWNER/REPOSITORY \
+  --issue 123
+```
+
+すべてのconfigured gateがPASSし、Chat上の `@excellent-nd` + Human GO、target routing、repository-native lock/claim等が成立した場合だけdispatchする。
+
+### Runtime event mapping
+
+GitHub Project authorityでは、Excellent-Ndが自動更新してよいeventだけを `mutable_events` に列挙する。未列挙eventは更新しない。
+
+```json
+{
+  "status_integration": {
+    "authority": "github-project",
+    "field": "Workflow Status",
+    "event_mapping": {
+      "execution_started": "In Progress",
+      "decision_required": "Needs Decision",
+      "external_blocked": "On Hold",
+      "review_ready": "Review",
+      "execution_failed": "On Hold"
+    },
+    "mutable_events": [
+      "execution_started",
+      "decision_required",
+      "external_blocked",
+      "review_ready",
+      "execution_failed"
+    ]
+  }
+}
+```
+
+repositoryが人間専用としているStatusはmapping対象にしなければExcellent-Ndから変更されない。
+
+### Public exampleとprivate repositoryの境界
+
+public repositoryには `config/repository-config.github-project.example.json` の匿名generic exampleだけを置く。
+
+private repository固有のrepository名、Project title、内部Field名・Status値、その他識別可能な運用情報はpublic Excellent-Nd repository、Issue、PR、comment、artifactへ転記しない。private repositoryへの実適用設定は対象private repository自身の `.excellent-nd/repository.json` へ保存する。
+
+### workflow_status
+
+repository-native status authorityがある場合、`workflow_status` はExcellent-Ndのruntime correlation / result ingestion用論理状態であり、既存repositoryの状態正本を置き換えない。
