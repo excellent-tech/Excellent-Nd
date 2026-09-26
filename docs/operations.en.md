@@ -75,11 +75,13 @@ Do not start execution-host setup until `.excellent-nd/repository.json` records 
 
 ### 8. Start Symphony through the observer
 
-- **Action**: Start the observer in the same process tree as Symphony.
-- **Command / UI**: Add `--start` to the step 4 setup command.
-- **Expected result**: The observer relays stdout / stderr and the runtime stays up.
+- **Action**: On Linux, start the observer and Symphony as a repository-scoped systemd user service.
+- **Command / UI**: Add `--start` to the step 4 setup command. The repository basename is the default instance, such as `excellent-nd@sample-app.service`. Use a public-safe `--service-instance worker-a` only to resolve a basename collision. Use `--foreground` instead for terminal diagnostics.
+- **Expected result**: Setup installs the shared template and instance mapping, reloads systemd, restarts and enables the unit, and verifies active observer/Symphony processes. The runtime no longer depends on the setup terminal.
 - **If OK**: Continue to step 9.
-- **If not OK**: Check binary, profile, auth, and logs; do not add another scheduler or polling daemon.
+- **If not OK**: Check binary, profile, `gh auth`, Codex auth, and the user journal; do not add another scheduler or polling daemon.
+
+The service obtains a token from the same user's `gh auth token` at startup and passes it only in the process environment. It does not store credentials in the unit, mapping, or repository. Setup does not enable linger or make sudo/root changes.
 
 > **Illustration candidate 2**: Show only a healthy process and loaded profile. Exclude tokens, private hostnames / paths, environment values, and internal URLs.
 
@@ -161,6 +163,21 @@ A. Symphony orchestrates Issue polling, workspaces, retries, and threads / turns
 ### Q. Does `No queued retries` mean success?
 
 A. No. It only says no retry is queued. Inspect Issue state, runtime logs, Workpad, commits / diff, verification, and PR together.
+
+### Q. How do I check the execution-host runtime?
+
+A. `enabled: true` in `.excellent-nd/targets/*.json` does not mean the service is currently online. Use service status, processes, Issue state, Workpad, and PR evidence together:
+
+```sh
+systemctl --user list-units 'excellent-nd@*.service' --all
+systemctl --user status 'excellent-nd@<repository-instance>.service' --no-pager
+systemctl --user is-active 'excellent-nd@<repository-instance>.service'
+systemctl --user is-enabled 'excellent-nd@<repository-instance>.service'
+journalctl --user -u 'excellent-nd@<repository-instance>.service' -n 100 --no-pager
+pgrep -af 'runtime_observer.py|symphony'
+```
+
+Restart with `systemctl --user restart 'excellent-nd@<repository-instance>.service'`; `stop` and `start` work the same way. Routing labels cannot be picked up while the worker is stopped. Neither `Working 0`, `Inactive`, nor `No queued retries` alone proves the runtime's health or failure cause.
 
 ## Runtime interruption records and resume
 

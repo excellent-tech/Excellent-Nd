@@ -75,11 +75,15 @@ Execution host setupは `.excellent-nd/repository.json` がreview済みでない
 
 ### 8. Symphony を observer 経由で起動する
 
-- **操作すること**: Symphony と同じ process tree の observer を起動する。
-- **コマンド / UI 操作**: 手順4のsetup commandへ `--start` を追加する。現在のSymphony preview runtimeがguardrails acknowledgementを要求する場合は、人間が警告内容を確認したうえで `--i-understand-that-this-will-be-running-without-the-usual-guardrails` も明示する。Excellent-Ndはこの明示指定がある場合だけupstream Symphonyへ同じacknowledgement flagを転送する。
-- **確認する結果**: observer が stdout / stderr を転送し、runtime が継続稼働する。
+- **操作すること**: Linuxではrepository単位のsystemd user serviceとして、Symphony と同じ process tree の observer を起動する。
+- **コマンド / UI 操作**: 手順4のsetup commandへ `--start` を追加する。repository basenameが既定instance名となり、例えば`sample-app`は`excellent-nd@sample-app.service`になる。同一hostの別repositoryとbasenameが衝突する場合だけ、public-safeな`--service-instance worker-a`を指定する。既存instanceが別repositoryを指す場合は上書きせず停止する。現在のSymphony preview runtimeがguardrails acknowledgementを要求する場合は、人間が警告内容を確認したうえで `--i-understand-that-this-will-be-running-without-the-usual-guardrails` も明示する。Excellent-Ndはこの明示指定がある場合だけupstream Symphonyへ同じacknowledgement flagを転送する。
+- **確認する結果**: setupがunit/mapping更新、`daemon-reload`、enable、restart、active確認、observer/Symphony process確認まで完了し、Terminalを閉じてもruntimeがuser serviceとして継続稼働する。foreground診断が必要な場合だけ`--start`の代わりに`--foreground`を使う。
 - **OK の場合**: 手順 9 へ進む。
-- **NG の場合**: binary、profile、認証、process log を確認する。別 scheduler / polling daemon は追加しない。
+- **NG の場合**: binary、profile、`gh auth`、Codex認証、user service logを確認する。別 scheduler / polling daemon は追加しない。
+
+serviceは起動時に同一Linux userの`gh auth token`からcredentialを取得し、observer/Symphonyのprocess environmentへだけ渡す。tokenをunit、instance mapping、repositoryへ保存しない。Codexも同一userの既存認証を利用する。
+
+systemd user managerは通常、そのuserのlogin session中に動作する。logout後や再起動直後からloginなしで稼働させるには管理方針に応じてlingerが必要な場合があるが、setupはsudoやlinger変更を行わない。必要性は`loginctl show-user "$USER" -p Linger`で確認し、変更の影響を管理者と確認する。
 
 > **挿図候補 2**: 正常稼働とprofile読込だけが見える画面。token、非公開 hostname / path、環境変数、内部 URL は写さない。
 
@@ -162,6 +166,32 @@ A. Symphony は Issue 監視、workspace、retry、thread / turn を編成しま
 
 A. いいえ。retry queue に待機がないことだけを示します。Issue 状態、runtime log、Workpad、commit / diff、検証、PR を合わせて確認します。
 
+### Q. execution hostのruntime状態はどう確認しますか？
+
+A. `.excellent-nd/targets/*.json`の`enabled: true`は共有台帳上でrouting先として有効という意味であり、現在serviceがonlineという意味ではありません。routing labelが存在してもworker processが停止していればpickupされません。次を組み合わせて確認します。
+
+```sh
+systemctl --user list-units 'excellent-nd@*.service' --all
+systemctl --user status 'excellent-nd@<repository-instance>.service' --no-pager
+systemctl --user is-active 'excellent-nd@<repository-instance>.service'
+systemctl --user is-enabled 'excellent-nd@<repository-instance>.service'
+journalctl --user \
+  -u 'excellent-nd@<repository-instance>.service' \
+  -n 100 \
+  --no-pager
+pgrep -af 'runtime_observer.py|symphony'
+```
+
+必要な場合は同じunitを操作します。
+
+```sh
+systemctl --user restart 'excellent-nd@<repository-instance>.service'
+systemctl --user stop 'excellent-nd@<repository-instance>.service'
+systemctl --user start 'excellent-nd@<repository-instance>.service'
+```
+
+`Working 0`はその観測時点で表示対象の実行がないこと、`Inactive`は表示元によってservice、worker、task等の状態を指し得るため、いずれも単独で原因を断定しません。GitHub Issue native state、service status、observer/Symphony process、Issue Workpad、branch/PRを合わせて確認します。`No queued retries`もruntime正常稼働の証明ではありません。
+
 ## 実行中断の記録と再開
 
 observerはSymphonyの同一process treeでobservable eventを監視します。Issue contextを持つ利用枠超過、長時間rate limit、turn timeout、App Server起動失敗、agent abnormal exitだけを、秘密情報と非公開pathを除去してWorkpadへ保存します。category、error、occurred_at、取得可能なreset / retryとsession / attempt、checkpoint取得可否、残作業、再開条件を記録します。短周期retryはSymphonyへ委ね、commentを作りません。Issue番号や正確なerrorがeventにない場合は推測せず、取得不能とします。
@@ -228,4 +258,4 @@ Excellent-Nd のアンインストールは Codex や GitHub 自体の削除を�
 
 ## トラブルシューティング
 
-配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。Codex `workspace-write`では`.git`への書込みが意図的に保護されるため、`FETCH_HEAD`、branch、commit等の失敗をownership / permission変更や`danger-full-access`で迂回しません。clean workspaceはhost-side `before_run` hookで更新し、GitHubへのbranch / commit / PR作成はSymphonyのhost-side `github_api`を使用します。秘密情報を診断記録へ貼らないでください。
+配信されない場合は、まずuser service status/logとobserver/Symphony processを確認し、その後GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。Codex `workspace-write`では`.git`への書込みが意図的に保護されるため、`FETCH_HEAD`、branch、commit等の失敗をownership / permission変更や`danger-full-access`で迂回しません。clean workspaceはhost-side `before_run` hookで更新し、GitHubへのbranch / commit / PR作成はSymphonyのhost-side `github_api`を使用します。秘密情報を診断記録へ貼らないでください。

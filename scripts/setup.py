@@ -23,6 +23,13 @@ from repository_config import (
     status_authority,
 )
 from target_inventory import write_target_record
+from service_runner import credential_environment
+from systemd_service import (
+    enable_and_start,
+    install as install_service,
+    instance_mapping,
+    validate_instance,
+)
 
 SYMPHONY_ACK_FLAG = "--i-understand-that-this-will-be-running-without-the-usual-guardrails"
 
@@ -53,7 +60,7 @@ def command(*args):
     ).stdout.strip()
 
 
-def main(argv=None):
+def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, help="GitHub owner/repository")
     parser.add_argument("--execution-target", help="stable execution target ID; defaults to local hostname")
@@ -61,7 +68,10 @@ def main(argv=None):
     parser.add_argument("--publish-hostname", action="store_true")
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--skill-confirmed", action="store_true")
-    parser.add_argument("--start", action="store_true")
+    runtime_mode = parser.add_mutually_exclusive_group()
+    runtime_mode.add_argument("--start", action="store_true", help="install and start a Linux systemd user service")
+    runtime_mode.add_argument("--foreground", action="store_true", help="run the observer in this terminal for diagnosis")
+    parser.add_argument("--service-instance", help="systemd instance name; defaults to repository basename")
     parser.add_argument(
         SYMPHONY_ACK_FLAG,
         dest="acknowledge_unguarded_preview",
@@ -70,12 +80,51 @@ def main(argv=None):
     )
     parser.add_argument("--manifest", type=Path, default=Path("config/runtime-lock.json"))
     parser.add_argument("--template", type=Path, default=Path("config/WORKFLOW.md.tpl"))
+    parser.add_argument("--service-template", type=Path, default=Path("config/excellent-nd@.service.tpl"))
+    return parser
+
+
+def service_instance(value, repo_root):
+    return validate_instance(value or repo_root.name)
+
+
+def runtime_prefix(value, repo_root):
+    expected = repo_root.resolve() / ".excellent-nd"
+    resolved = (repo_root / value).resolve() if not value.is_absolute() else value.resolve()
+    if resolved != expected:
+        raise ValueError("--prefix must resolve to <repository>/.excellent-nd for systemd service mapping")
+    return resolved
+
+
+def require_systemd_user():
+    if platform.system() != "Linux":
+        raise RuntimeError("--start requires Linux with a systemd user manager; use --foreground for diagnosis")
+    if not shutil.which("systemctl"):
+        raise RuntimeError("--start requires systemctl")
+    subprocess.run(
+        ["systemctl", "--user", "show-environment"], check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+
+
+def run_foreground(observer_command):
+    environment = credential_environment(os.environ.get("PATH", os.defpath))
+    os.execve(observer_command[0], observer_command, environment)
+
+
+def main(argv=None):
+    parser = argument_parser()
     args = parser.parse_args(argv)
 
     if not args.skill_confirmed:
         parser.error("confirm the ChatGPT Skill is enabled with --skill-confirmed")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo):
         parser.error("--repo must be owner/name")
+    if args.start:
+        try:
+            require_systemd_user()
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+            parser.error(str(error))
     for executable in ("git", "gh", "codex"):
         if not shutil.which(executable):
             parser.error(f"missing prerequisite: {executable}")
@@ -86,6 +135,11 @@ def main(argv=None):
         repo_root = Path(command("git", "-C", str(repo_path), "rev-parse", "--show-toplevel"))
     except subprocess.CalledProcessError as error:
         parser.error(f"--repo-path must point inside a Git repository: {error}")
+
+    try:
+        prefix = runtime_prefix(args.prefix, repo_root)
+    except ValueError as error:
+        parser.error(str(error))
 
     try:
         repository_config = load_repository_config(repo_root)
@@ -127,8 +181,8 @@ def main(argv=None):
     asset = manifest["symphony"]["assets"].get(target())
     if not asset:
         parser.error(f"no validated Symphony asset for {target()}")
-    args.prefix.mkdir(parents=True, exist_ok=True)
-    runtime = args.prefix / "symphony"
+    prefix.mkdir(parents=True, exist_ok=True)
+    runtime = prefix / "symphony"
     url = f"https://github.com/{manifest['symphony']['repository']}/releases/download/{manifest['symphony']['tag']}/{asset['name']}"
     if not runtime.exists() or sha256(runtime) != asset["sha256"]:
         temporary = runtime.with_suffix(".download")
@@ -139,7 +193,7 @@ def main(argv=None):
         temporary.replace(runtime)
     runtime.chmod(0o755)
 
-    workflow = args.prefix / "WORKFLOW.md"
+    workflow = prefix / "WORKFLOW.md"
     workflow.write_text(
         render_workflow(
             args.template.read_text(),
@@ -160,7 +214,7 @@ def main(argv=None):
         "repository_config": str(config_path(repo_root).relative_to(repo_root)),
         "status_authority": status_authority(repository_config),
     }
-    (args.prefix / "host.json").write_text(
+    (prefix / "host.json").write_text(
         json.dumps(host_config, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -206,8 +260,42 @@ def main(argv=None):
     print("repository config:", config_path(repo_root))
     print("target inventory:", inventory_path)
     print("runtime command:", " ".join(observer_command))
+    if args.foreground:
+        try:
+            run_foreground(observer_command)
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as error:
+            parser.error(str(error))
     if args.start:
-        os.execv(sys.executable, observer_command)
+        try:
+            instance = service_instance(args.service_instance, repo_root)
+            executable_dirs = [
+                str(Path(executable).resolve().parent)
+                for executable in (sys.executable, *(shutil.which(name) for name in ("git", "gh", "codex")))
+                if executable
+            ]
+            service_path = os.pathsep.join(dict.fromkeys(executable_dirs + os.environ.get("PATH", "").split(os.pathsep)))
+            mapping = instance_mapping(
+                repository=args.repo,
+                repository_root=repo_root,
+                prefix=prefix,
+                repository_config=config_path(repo_root),
+                observer=observer,
+                python=Path(sys.executable),
+                path=service_path,
+                acknowledge_unguarded_preview=args.acknowledge_unguarded_preview,
+            )
+            service = install_service(
+                instance,
+                mapping,
+                args.service_template,
+                Path(sys.executable),
+                Path(__file__).with_name("service_runner.py"),
+            )
+            enable_and_start(service, observer, runtime)
+            print("systemd service:", service)
+            print("service status: active (observer and Symphony process tree verified)")
+        except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+            parser.error(str(error))
     return 0
 
 
