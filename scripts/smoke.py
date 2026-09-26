@@ -68,6 +68,12 @@ def main(argv=None):
     require(route_label in workflow, "WORKFLOW omits configured routing label")
     require(target_label in workflow, "WORKFLOW omits configured target label")
     require("approval_policy: never" in workflow, "WORKFLOW approval policy mismatch")
+    require("thread_sandbox: workspace-write" in workflow, "WORKFLOW sandbox policy mismatch")
+    require("before_run:" in workflow, "WORKFLOW omits host-side before_run preparation")
+    require("git fetch --prune origin" in workflow, "WORKFLOW omits host-side default-branch refresh")
+    require("github_api" in workflow, "WORKFLOW omits host-side GitHub publication path")
+    require("Git publication policy for `workspace-write`" in workflow, "WORKFLOW omits workspace-write Git publication policy")
+    require("danger-full-access" not in workflow, "WORKFLOW must not enable danger-full-access")
     require(os.access(args.runtime, os.X_OK), "Symphony binary is not executable")
     print("readiness: PASS")
     return 0
