@@ -73,7 +73,7 @@ def main(argv=None):
     require("git fetch --prune origin" in workflow, "WORKFLOW omits host-side default-branch refresh")
     require("github_api" in workflow, "WORKFLOW omits host-side GitHub publication path")
     require("Git publication policy for `workspace-write`" in workflow, "WORKFLOW omits workspace-write Git publication policy")
-    require("danger-full-access" not in workflow, "WORKFLOW must not enable danger-full-access")
+    require("thread_sandbox: danger-full-access" not in workflow, "WORKFLOW must not enable danger-full-access")
     require(os.access(args.runtime, os.X_OK), "Symphony binary is not executable")
     print("readiness: PASS")
     return 0
