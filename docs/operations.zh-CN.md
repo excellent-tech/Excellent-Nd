@@ -75,11 +75,13 @@ Excellent-Nd 按 **Skill → Repository / Issue 集成 → Execution host** 的�
 
 ### 8. 通过 observer 启动 Symphony
 
-- **操作**: 在同一 process tree 中启动 observer 与 Symphony。
-- **命令 / UI 操作**: 在步骤4的setup command后增加 `--start`。
-- **确认结果**: observer 转发 stdout / stderr，runtime 持续运行。
+- **操作**: 在Linux上，以repository单位的systemd user service启动observer与Symphony。
+- **命令 / UI 操作**: 在步骤4的setup command后增加 `--start`。默认instance是repository basename，例如`excellent-nd@sample-app.service`。只有basename冲突时才指定公开安全的`--service-instance worker-a`。Terminal诊断使用`--foreground`。
+- **确认结果**: setup安装共享template与instance mapping，reload systemd，restart并enable unit，再确认observer/Symphony process为active；runtime不再依赖setup Terminal。
 - **OK**: 进入步骤 9。
-- **NG**: 检查 binary、profile、认证和log；不新增 scheduler 或 polling daemon。
+- **NG**: 检查 binary、profile、`gh auth`、Codex认证和user journal；不新增 scheduler 或 polling daemon。
+
+service启动时从同一user的`gh auth token`取得credential，只通过process environment传递，不保存到unit、mapping或repository。setup不会启用linger，也不会执行sudo/root变更。
 
 > **插图候选 2**：只显示正常进程和profile已读取。不要显示 token、非公开 hostname / path、环境变量值或内部 URL。
 
@@ -161,6 +163,21 @@ A. Symphony 编排 Issue 轮询、workspace、retry、thread / turn；Codex 执�
 ### Q. `No queued retries` 是否表示成功？
 
 A. 否。它只表示没有等待的 retry。还要检查 Issue 状态、runtime log、Workpad、commit / diff、验证和 PR。
+
+### Q. 如何确认execution host的runtime状态？
+
+A. `.excellent-nd/targets/*.json`中的`enabled: true`不表示service当前online。应组合确认service、process、Issue state、Workpad与PR：
+
+```sh
+systemctl --user list-units 'excellent-nd@*.service' --all
+systemctl --user status 'excellent-nd@<repository-instance>.service' --no-pager
+systemctl --user is-active 'excellent-nd@<repository-instance>.service'
+systemctl --user is-enabled 'excellent-nd@<repository-instance>.service'
+journalctl --user -u 'excellent-nd@<repository-instance>.service' -n 100 --no-pager
+pgrep -af 'runtime_observer.py|symphony'
+```
+
+用`systemctl --user restart 'excellent-nd@<repository-instance>.service'`重启，`stop`与`start`同理。worker停止时，即使存在routing label也不会pickup。`Working 0`、`Inactive`或`No queued retries`都不能单独证明runtime正常，也不能单独确定故障原因。
 
 ## 运行中断记录与恢复
 
