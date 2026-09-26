@@ -59,7 +59,7 @@ Do not start execution-host setup until `.excellent-nd/repository.json` records 
 
 - **Action**: Inspect `.excellent-nd/WORKFLOW.md`.
 - **Command / UI**: Check repository, `required_labels: symphony-ready`, `{{ issue.description }}`, workspace, and Codex policy.
-- **Expected result**: The full Issue body reaches the initial prompt and ineligible Issues are not dispatched.
+- **Expected result**: The full Issue body reaches the initial prompt and ineligible Issues are not dispatched. For the GitHub adapter, a host-side `before_run` hook refreshes a clean workspace to the remote default branch outside the Codex sandbox; Codex keeps `.git` protected under `workspace-write`, uses read-only Git verification, and publishes branch / commit / Draft PR state through host-side `github_api`.
 - **If OK**: Continue to step 7.
 - **If not OK**: Fix and regenerate the template; do not use a title-only profile.
 
@@ -215,4 +215,4 @@ Uninstalling Excellent-Nd does not delete Codex or GitHub.
 
 ## Troubleshooting
 
-If an Issue is not dispatched, check GitHub native state, adapter connectivity, profile `required_labels`, `symphony-ready`, and target conditions. If status is unclear, inspect runtime logs, the Workpad, Git diff, verification, and PR in that order. Never paste secrets into diagnostic records.
+If an Issue is not dispatched, check GitHub native state, adapter connectivity, profile `required_labels`, `symphony-ready`, and target conditions. If status is unclear, inspect runtime logs, the Workpad, Git diff, verification, and PR in that order. Under Codex `workspace-write`, `.git` is intentionally protected from writes; do not fix `FETCH_HEAD` / branch / commit failures by changing ownership, permissions, or enabling `danger-full-access`. A clean workspace is refreshed by the host-side `before_run` hook, and GitHub publication uses Symphony's host-side `github_api`. Never paste secrets into diagnostic records.
