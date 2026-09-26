@@ -13,6 +13,7 @@ import urllib.request
 from pathlib import Path
 
 from repository_adapter import preflight as repository_preflight
+from repository_adapter import split_repo
 from repository_adapter import transition_event
 from repository_config import (
     dispatch_gates,
@@ -107,8 +108,7 @@ def runtime_event_for(status, block_kind):
 
 class GitHub:
     def __init__(self, repo, config, token=None):
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
-            raise ValueError("repo must be owner/name")
+        split_repo(repo)
         self.repo = repo
         self.config = config
         self.token = token or os.environ.get("GITHUB_TOKEN")
