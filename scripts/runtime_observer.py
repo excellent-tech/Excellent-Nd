@@ -24,6 +24,8 @@ from repository_config import (
     status_names,
 )
 
+SYMPHONY_ACK_FLAG = "--i-understand-that-this-will-be-running-without-the-usual-guardrails"
+
 BLOCKING_PATTERNS = (
     ("turn_timeout", re.compile(r"(turn timeout|turn timed out)", re.I)),
     ("app_server_startup", re.compile(r"(?=.*(?:thread/start|app[ -]?server|session (?:initialization|startup)))(?=.*(?:fail|error|exit|reject))", re.I)),
@@ -189,11 +191,19 @@ Error text is sanitized. Raw logs and credentials are not copied here.
 """
 
 
+def symphony_command(args):
+    command = [args.symphony]
+    if args.acknowledge_unguarded_preview:
+        command.append(SYMPHONY_ACK_FLAG)
+    command.append(args.workflow)
+    return command
+
+
 def run_observer(args):
     config = read_config(args.repository_config)
     github = GitHub(args.repo, config)
     process = subprocess.Popen(
-        [args.symphony, args.workflow],
+        symphony_command(args),
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         text=True, bufsize=1,
     )
@@ -237,6 +247,12 @@ def main(argv=None):
     run.add_argument("--repo", required=True)
     run.add_argument("--workflow", required=True)
     run.add_argument("--symphony", required=True)
+    run.add_argument(
+        SYMPHONY_ACK_FLAG,
+        dest="acknowledge_unguarded_preview",
+        action="store_true",
+        help="explicitly acknowledge Symphony preview execution without the usual guardrails",
+    )
     add_repository_config_argument(run)
 
     resume = sub.add_parser("resume")

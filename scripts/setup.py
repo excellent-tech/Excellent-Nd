@@ -24,6 +24,8 @@ from repository_config import (
 )
 from target_inventory import write_target_record
 
+SYMPHONY_ACK_FLAG = "--i-understand-that-this-will-be-running-without-the-usual-guardrails"
+
 
 def target():
     system = {"Linux": "linux", "Darwin": "darwin"}.get(platform.system())
@@ -60,6 +62,12 @@ def main(argv=None):
     parser.add_argument("--prefix", type=Path, required=True)
     parser.add_argument("--skill-confirmed", action="store_true")
     parser.add_argument("--start", action="store_true")
+    parser.add_argument(
+        SYMPHONY_ACK_FLAG,
+        dest="acknowledge_unguarded_preview",
+        action="store_true",
+        help="explicitly acknowledge Symphony preview execution without the usual guardrails",
+    )
     parser.add_argument("--manifest", type=Path, default=Path("config/runtime-lock.json"))
     parser.add_argument("--template", type=Path, default=Path("config/WORKFLOW.md.tpl"))
     args = parser.parse_args(argv)
@@ -186,8 +194,12 @@ def main(argv=None):
         "--repo", args.repo,
         "--workflow", str(workflow),
         "--symphony", str(runtime),
-        "--repository-config", str(config_path(repo_root)),
     ]
+    if args.acknowledge_unguarded_preview:
+        observer_command.append(SYMPHONY_ACK_FLAG)
+    observer_command.extend([
+        "--repository-config", str(config_path(repo_root)),
+    ])
     print("execution target:", execution_target)
     print("routing label:", route_label)
     print("target label:", target_label)
