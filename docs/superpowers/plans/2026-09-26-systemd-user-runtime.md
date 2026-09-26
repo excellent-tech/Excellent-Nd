@@ -46,4 +46,4 @@
 - [x] service/status/log/process の匿名化された運用手順を追加する。
 - [x] full suite、privacy scan、2 service の実機起動、1 polling interval と pickup evidence を確認する。
 - [ ] repository preflight PASSを確認する（既存Human Approval gateの人間確認待ち）。
-- [ ] branch を commit/push し Draft PR を作る。
+- [x] branch を commit/push し Draft PR を作る。
