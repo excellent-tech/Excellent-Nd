@@ -76,7 +76,7 @@ Execution host setupは `.excellent-nd/repository.json` がreview済みでない
 ### 8. Symphony を observer 経由で起動する
 
 - **操作すること**: Symphony と同じ process tree の observer を起動する。
-- **コマンド / UI 操作**: 手順4のsetup commandへ `--start` を追加する。
+- **コマンド / UI 操作**: 手順4のsetup commandへ `--start` を追加する。現在のSymphony preview runtimeがguardrails acknowledgementを要求する場合は、人間が警告内容を確認したうえで `--i-understand-that-this-will-be-running-without-the-usual-guardrails` も明示する。Excellent-Ndはこの明示指定がある場合だけupstream Symphonyへ同じacknowledgement flagを転送する。
 - **確認する結果**: observer が stdout / stderr を転送し、runtime が継続稼働する。
 - **OK の場合**: 手順 9 へ進む。
 - **NG の場合**: binary、profile、認証、process log を確認する。別 scheduler / polling daemon は追加しない。
