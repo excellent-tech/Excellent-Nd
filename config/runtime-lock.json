@@ -24,7 +24,7 @@
     }
   },
   "codex": {
-    "version": "0.155.0"
+    "version": "0.157.0"
   },
   "workflow_template": "config/WORKFLOW.md.tpl"
 }
