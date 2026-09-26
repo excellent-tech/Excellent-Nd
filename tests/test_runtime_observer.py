@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 from scripts.repository_config import default_config
 from scripts.runtime_observer import (
@@ -9,6 +10,8 @@ from scripts.runtime_observer import (
     runtime_event_for,
     sanitize,
     set_workflow_status,
+    symphony_command,
+    SYMPHONY_ACK_FLAG,
 )
 
 
@@ -124,6 +127,23 @@ class ObserverTest(unittest.TestCase):
     def test_repository_input_is_validated(self):
         with self.assertRaises(ValueError):
             GitHub("../invalid", self.config, token="not-used")
+
+    def test_symphony_preview_acknowledgement_is_explicit(self):
+        args = SimpleNamespace(
+            symphony="/tmp/symphony",
+            workflow="/tmp/WORKFLOW.md",
+            acknowledge_unguarded_preview=False,
+        )
+        self.assertEqual(
+            symphony_command(args),
+            ["/tmp/symphony", "/tmp/WORKFLOW.md"],
+        )
+
+        args.acknowledge_unguarded_preview = True
+        self.assertEqual(
+            symphony_command(args),
+            ["/tmp/symphony", SYMPHONY_ACK_FLAG, "/tmp/WORKFLOW.md"],
+        )
 
 
 if __name__ == "__main__":
