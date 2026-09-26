@@ -59,7 +59,7 @@ Execution host setupは `.excellent-nd/repository.json` がreview済みでない
 
 - **操作すること**: 生成された `.excellent-nd/WORKFLOW.md` を確認する。
 - **コマンド / UI 操作**: repository、`required_labels` にrepository configで承認されたrouting labelとこのhostのtarget labelがあること、`{{ issue.description }}`、workspace、Codex policy を確認する。
-- **確認する結果**: Issue body 全体が最初の prompt へ渡り、対象外 Issue は配信されない。
+- **確認する結果**: Issue body 全体が最初の prompt へ渡り、対象外 Issue は配信されない。GitHub adapterでは、clean workspaceを`before_run` hookがCodex sandbox外でremote default branchへ更新し、Codexは`workspace-write`の`.git`保護を維持したままread-only Git検証とhost-side `github_api`によるbranch / commit / Draft PR作成を行う。
 - **OK の場合**: 手順 7 へ進む。
 - **NG の場合**: template を修正して再生成する。title だけを渡す profile は使わない。
 
@@ -228,4 +228,4 @@ Excellent-Nd のアンインストールは Codex や GitHub 自体の削除を�
 
 ## トラブルシューティング
 
-配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。秘密情報を診断記録へ貼らないでください。
+配信されない場合は、GitHub native state、adapter 接続、profile の `required_labels`、`symphony-ready`、Issueの `nd-target:<execution_target>`、repository台帳 `.excellent-nd/targets/`、host-local `host.json` のtarget ID一致を確認します。実行結果が不明な場合は、runtime log、Issue Workpad、Git 差分、検証、PR を順に確認します。Codex `workspace-write`では`.git`への書込みが意図的に保護されるため、`FETCH_HEAD`、branch、commit等の失敗をownership / permission変更や`danger-full-access`で迂回しません。clean workspaceはhost-side `before_run` hookで更新し、GitHubへのbranch / commit / PR作成はSymphonyのhost-side `github_api`を使用します。秘密情報を診断記録へ貼らないでください。
