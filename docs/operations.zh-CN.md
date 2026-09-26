@@ -59,7 +59,7 @@ Excellent-Nd 按 **Skill → Repository / Issue 集成 → Execution host** 的�
 
 - **操作**: 检查 `.excellent-nd/WORKFLOW.md`。
 - **命令 / UI 操作**: 确认 repository、`required_labels: symphony-ready`、`{{ issue.description }}`、workspace 和 Codex policy。
-- **确认结果**: 完整 Issue body 进入首个 prompt，不调度不合格 Issue。
+- **确认结果**: 完整 Issue body 进入首个 prompt，不调度不合格 Issue。GitHub adapter 使用 host-side `before_run` hook 在 Codex sandbox 外把 clean workspace 刷新到远端默认分支；Codex 在 `workspace-write` 下保持 `.git` 受保护，只进行只读 Git 验证，并通过 host-side `github_api` 发布 branch / commit / Draft PR。
 - **OK**: 进入步骤 7。
 - **NG**: 修正 template 后重新生成，不使用只传 title 的 profile。
 
@@ -215,4 +215,4 @@ Codex turn 前的失败有时没有自动更新主体。不得声称完全自动
 
 ## 故障排查
 
-Issue 未派发时，检查 GitHub native state、adapter 连接、profile 的 `required_labels`、`symphony-ready` 和执行目标条件。结果不明确时，依次检查 runtime log、Workpad、Git diff、验证和 PR。不要把秘密信息粘贴到诊断记录。
+Issue 未派发时，检查 GitHub native state、adapter 连接、profile 的 `required_labels`、`symphony-ready` 和执行目标条件。结果不明确时，依次检查 runtime log、Workpad、Git diff、验证和 PR。Codex `workspace-write` 会有意保护 `.git` 不可写；遇到 `FETCH_HEAD`、branch 或 commit 写入失败时，不要通过修改 ownership / permissions 或启用 `danger-full-access` 绕过。clean workspace 由 host-side `before_run` hook 刷新，GitHub 发布使用 Symphony host-side `github_api`。不要把秘密信息粘贴到诊断记录。
