@@ -73,7 +73,8 @@ mutation($project:ID!, $item:ID!, $field:ID!, $option:String!) {
 
 
 def split_repo(repo: str) -> tuple[str, str]:
-    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repo):
+    segment = r"[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?"
+    if not re.fullmatch(rf"{segment}/{segment}", repo):
         raise ValueError("repo must be owner/name")
     return tuple(repo.split("/", 1))
 
