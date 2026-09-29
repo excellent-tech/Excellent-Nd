@@ -12,8 +12,14 @@ class WorkflowGitPublicationTests(unittest.TestCase):
 
     def test_clean_workspace_is_refreshed_outside_codex_sandbox(self):
         self.assertIn("before_run:", self.workflow)
-        self.assertIn("git fetch --prune origin", self.workflow)
-        self.assertIn('git reset --hard "origin/$default_branch"', self.workflow)
+        self.assertIn("before-run", self.workflow)
+        self.assertIn("__OBSERVER__", self.workflow)
+
+    def test_after_run_applies_structured_lifecycle_marker(self):
+        self.assertIn("after_run:", self.workflow)
+        self.assertIn("apply-marker", self.workflow)
+        self.assertIn("excellent-nd/runtime-transition@v1", self.workflow)
+        self.assertIn(".excellent-nd/runtime-transition.json", self.workflow)
 
     def test_workspace_write_uses_host_side_github_api_for_publication(self):
         self.assertIn("thread_sandbox: workspace-write", self.workflow)

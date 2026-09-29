@@ -201,6 +201,9 @@ def main(argv=None):
             execution_target,
             routing_label_name=route_label,
             target_prefix=target_prefix(repository_config),
+            python=Path(sys.executable),
+            observer=Path(__file__).with_name("runtime_observer.py"),
+            repository_config=config_path(repo_root),
         ),
         encoding="utf-8",
     )
