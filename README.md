@@ -88,6 +88,6 @@ Skill のインストールは **ChatGPT 側の操作規約を有効化するだ
 | Symphony | Issue-first 実行オーケストレーション |
 | Codex | タスク実行 worker |
 
-導入、運用、よくある質問、アンインストール、ラベル、`execution_target` は [利用ガイド](docs/operations.md) を、バージョン番号は[バージョン方針](skills/excellent-nd/references/version-policy.md)を参照してください。
+導入、運用、よくある質問、アンインストール、ラベル、`execution_target` は [利用ガイド](docs/operations.md) を参照してください。Issue、Symphony、observer、Codex、状態遷移が内部でどう連携するかは[内部処理ガイド](docs/runtime-architecture.md)で、処理フロー・各ノード・source code map・既知不具合を含めて説明しています。バージョン番号は[バージョン方針](skills/excellent-nd/references/version-policy.md)を参照してください。
 
 検証済みruntimeの導入入口は `python3 scripts/setup.py --repo OWNER/REPOSITORY --repo-path . --prefix .excellent-nd --skill-confirmed` です。local hostnameをtarget IDの既定値とし、対象repositoryの `.excellent-nd/targets/*.json` に非credentialなtarget台帳を保存します。hostnameを載せたくない場合は `--execution-target ALIAS` を指定できます。各hostは `symphony-ready` と `nd-target:<execution_target>` の両方でTaskをroutingします。起動・smoke・停止は[利用ガイド](docs/operations.md)を参照してください。

@@ -86,6 +86,6 @@ Installing the Skill **only enables the ChatGPT-side operating rules**. It does 
 | Symphony | Issue-first execution orchestration |
 | Codex | Task execution worker |
 
-See the [User Guide](docs/operations.en.md) for installation and operations, and the [version policy](skills/excellent-nd/references/version-policy.md) for release numbering.
+See the [User Guide](docs/operations.en.md) for installation and operations, the [Runtime Architecture Guide](docs/runtime-architecture.en.md) for the Issue/Symphony/observer/Codex processing flow and source-code map, and the [version policy](skills/excellent-nd/references/version-policy.md) for release numbering.
 
 The validated runtime entry point is `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed`. See the [User Guide](docs/operations.en.md) for startup, smoke verification, and shutdown.
