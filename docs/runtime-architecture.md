@@ -47,7 +47,7 @@ Excellent-Ndの人間向けUXはChatGPT中心です。Issueは、実行するTas
 
 ### 2.1 Node A～Q対応の通常フロー
 
-図の各ブロック先頭に **A～Q** を表示し、本文の同じNodeへ対応させています。GitHub上でMermaid node linkが有効な場合はブロックをクリックすると詳細へ移動できます。利用環境で図内リンクが無効な場合は、図直下のNode indexを使用してください。
+図の各ブロック先頭に **A～Q** を表示し、本文の同じNodeへ対応させています。GitHubのMermaid rendererでは図内クリックリンクが環境により安定しないため、図内はA～Qの識別表示に限定し、直下のNode indexを正式なリンク経路とします。
 
 ```mermaid
 flowchart TD
@@ -71,23 +71,6 @@ flowchart TD
     J -->|review| P["P. Human Review / Merge"]
     P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
 
-    click A "./runtime-architecture.md#node-a" "Node A details"
-    click B "./runtime-architecture.md#node-b" "Node B details"
-    click C "./runtime-architecture.md#node-c" "Node C details"
-    click D "./runtime-architecture.md#node-d" "Node D details"
-    click E "./runtime-architecture.md#node-e" "Node E details"
-    click F "./runtime-architecture.md#node-f" "Node F details"
-    click G "./runtime-architecture.md#node-g" "Node G details"
-    click H "./runtime-architecture.md#node-h" "Node H details"
-    click I "./runtime-architecture.md#node-i" "Node I details"
-    click J "./runtime-architecture.md#node-j" "Node J details"
-    click K "./runtime-architecture.md#node-k" "Node K details"
-    click L "./runtime-architecture.md#node-l" "Node L details"
-    click M "./runtime-architecture.md#node-m" "Node M details"
-    click N "./runtime-architecture.md#node-n" "Node N details"
-    click O "./runtime-architecture.md#node-o" "Node O details"
-    click P "./runtime-architecture.md#node-p" "Node P details"
-    click Q "./runtime-architecture.md#node-q" "Node Q details"
 ```
 
 **Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
@@ -113,15 +96,6 @@ flowchart TD
     C2 -->|PASS + Human GO| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
 
-    click H2 "./runtime-architecture.md#node-h" "Node H details"
-    click J2 "./runtime-architecture.md#node-j" "Node J details"
-    click K2 "./runtime-architecture.md#node-k" "Node K details"
-    click M2 "./runtime-architecture.md#node-m" "Node M details"
-    click N2 "./runtime-architecture.md#node-n" "Node N details"
-    click O2 "./runtime-architecture.md#node-o" "Node O details"
-    click C2 "./runtime-architecture.md#node-c" "Node C details"
-    click D2 "./runtime-architecture.md#node-d" "Node D details"
-    click F2 "./runtime-architecture.md#node-f" "Node F details"
 ```
 
 ---
@@ -166,7 +140,9 @@ Excellent-Ndは特に `before_run` と `after_run` を使って、workspace safe
 
 ## 4. 各ノードの処理詳細とソースコード
 
-<a id="node-a"></a>\n\n### Node A — ChatGPTでPlan / Human GO
+### Node A
+
+**ChatGPTでPlan / Human GO**
 
 **何をするか**
 
@@ -184,7 +160,9 @@ GitHub Issue body。これはCodexに渡るExecution Packetでもあります。
 
 ---
 
-<a id="node-b"></a>\n\n### Node B — GitHub IssueをDurable Taskとして保存
+### Node B
+
+**GitHub IssueをDurable Taskとして保存**
 
 **何を保存するか**
 
@@ -202,7 +180,9 @@ Issueのnative state（open/closed）、`workflow_status`、routing label、Proj
 
 ---
 
-<a id="node-c"></a>\n\n### Node C — Repository integration / dispatch gate
+### Node C
+
+**Repository integration / dispatch gate**
 
 **何をするか**
 
@@ -236,7 +216,9 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-<a id="node-d"></a>\n\n### Node D — routing / execution target
+### Node D
+
+**routing / execution target**
 
 **何をするか**
 
@@ -255,7 +237,9 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-<a id="node-e"></a>\n\n### Node E — setupが実行hostを構成
+### Node E
+
+**setupが実行hostを構成**
 
 **何をするか**
 
@@ -281,7 +265,9 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-<a id="node-f"></a>\n\n### Node F — SymphonyがIssueをpoll
+### Node F
+
+**SymphonyがIssueをpoll**
 
 **何をするか**
 
@@ -303,7 +289,9 @@ SymphonyのpollingそのものはExcellent-Nd Python codeではありません�
 
 ---
 
-<a id="node-g"></a>\n\n### Node G — Issueごとのworkspaceを準備
+### Node G
+
+**Issueごとのworkspaceを準備**
 
 SymphonyはIssueごとのworkspaceを管理します。Excellent-Ndではworkspace名からIssue番号を復元できるよう、`GH-<number>` を前提にする処理があります。
 
@@ -315,7 +303,9 @@ SymphonyはIssueごとのworkspaceを管理します。Excellent-Ndではworkspa
 
 ---
 
-<a id="node-h"></a>\n\n### Node H — before_runでworkspace safetyを確認
+### Node H
+
+**before_runでworkspace safetyを確認**
 
 **何をするか**
 
@@ -339,7 +329,9 @@ dirty + base driftを自動resetしない理由は、未commit成果を消失さ
 
 ---
 
-<a id="node-i"></a>\n\n### Node I — Symphonyがworkerをpickup
+### Node I
+
+**Symphonyがworkerをpickup**
 
 Symphonyが実際にworker attemptを開始すると、pinned runtimeが確実なstart eventをlogへ出します。
 
@@ -363,7 +355,9 @@ Symphony worker start
 
 ---
 
-<a id="node-j"></a>\n\n### Node J — GitHub.transitionが状態を一元更新
+### Node J
+
+**GitHub.transitionが状態を一元更新**
 
 PR #23以降、lifecycle state updateの中心は `GitHub.transition` です。
 
@@ -389,7 +383,9 @@ Project Statusだけ失敗し、routingだけ残ると、状態が壊れたTask�
 
 ---
 
-<a id="node-k"></a>\n\n### Node K — Codex App ServerがTaskを実行
+### Node K
+
+**Codex App ServerがTaskを実行**
 
 SymphonyがIssue bodyをpromptへrenderし、Codex App Serverをworkspace内で起動します。
 
@@ -408,7 +404,9 @@ Codex sandboxから `.git` metadataを無理に書き換えない方針です。
 
 ---
 
-<a id="node-l"></a>\n\n### Node L — Codexが成果物・検証・PRを作る
+### Node L
+
+**Codexが成果物・検証・PRを作る**
 
 通常の成果には次が含まれます。
 
@@ -423,7 +421,9 @@ Taskが完了したように見えても、人間のreview gateを飛ばしま�
 
 ---
 
-<a id="node-m"></a>\n\n### Node M — Codexがstructured lifecycle markerを書く
+### Node M
+
+**Codexがstructured lifecycle markerを書く**
 
 Codex run終了時の状態は、free-form commentだけではなくstructured markerでhostへ渡します。
 
@@ -452,7 +452,9 @@ Codex run終了時の状態は、free-form commentだけではなくstructured m
 
 ---
 
-<a id="node-n"></a>\n\n### Node N — after_runで正式transitionを適用
+### Node N
+
+**after_runで正式transitionを適用**
 
 `after_run` hookはmarkerを読み、同じ `GitHub.transition` へ流します。
 
@@ -472,7 +474,9 @@ markerが欠損、破損、未知transition、receipt不正の場合は、推測
 
 ---
 
-<a id="node-o"></a>\n\n### Node O — runtime interruptionの観測
+### Node O
+
+**runtime interruptionの観測**
 
 structured markerとは別に、observerはSymphony process treeのruntime logも監視します。
 
@@ -495,7 +499,9 @@ structured markerとは別に、observerはSymphony process treeのruntime log�
 
 ---
 
-<a id="node-p"></a>\n\n### Node P — Human Review / Merge
+### Node P
+
+**Human Review / Merge**
 
 reviewへ遷移するとroutingはOFFになります。人間がPRをreviewし、mergeします。
 
@@ -503,7 +509,9 @@ Excellent-Nd自身は「Codeを書いた = 完了」とは扱いません。PR�
 
 ---
 
-<a id="node-q"></a>\n\n### Node Q — ChatGPT result ingestion
+### Node Q
+
+**ChatGPT result ingestion**
 
 人間がChatGPTで結果取得を指示すると、SkillはIssue / PR / verificationを読み、元Planへ統合します。
 
