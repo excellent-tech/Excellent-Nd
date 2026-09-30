@@ -35,28 +35,82 @@ Excellent-Nd对人是conversation-first，对内部执行是Issue-first。Issue�
 
 ## 2. 端到端处理流程
 
+### 2.1 与 Node A-Q 对应的正常流程
+
+图中每个块都显示 **A-Q** Node标识。Mermaid链接可用时，点击块可跳转到对应详细说明；如果当前renderer不支持图内链接，可使用图下方的Node index。
+
 ```mermaid
 flowchart TD
-    A[Human + ChatGPT<br/>Plan / Human GO] --> B[GitHub Issue<br/>Execution Packet]
-    B --> C[Repository config / dispatch gates]
-    C -->|PASS| D[Routing + target labels]
-    D --> E[Symphony polling]
-    E --> F[Per-Issue workspace]
-    F --> G[before_run safety hook]
-    G --> H[Symphony worker pickup]
-    H --> I[observer: execution_started]
-    I --> J[GitHub.transition running]
-    J --> K[Codex App Server]
-    K --> L[Change / verification / Draft PR]
-    L --> M[Structured lifecycle marker]
-    M --> N[after_run hook]
-    N --> O[GitHub.transition]
-    O -->|review| P[Human review / merge]
-    P --> Q[ChatGPT result ingestion]
-    Q --> R[Issue close / next Task]
+    A["A. Human + ChatGPT<br/>Plan / Human GO"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    B --> C["C. Repository integration<br/>dispatch gates"]
+    C -->|PASS| D["D. Routing / execution target"]
+    E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
+    D --> F
+    F --> G["G. Per-Issue workspace"]
+    G --> H["H. before_run<br/>workspace safety"]
+    H -->|safe| I["I. Symphony worker pickup"]
+    I --> J["J. GitHub.transition<br/>formal state synchronization"]
+    J -->|running| K["K. Codex App Server"]
+    K --> L["L. Change / Verification / Draft PR"]
+    L --> M["M. Structured lifecycle marker"]
+    M --> N["N. after_run<br/>formal transition"]
+    N --> J
+    K -. runtime signal .-> O["O. Runtime interruption observer"]
+    O --> J
+    H -. safety blocker .-> J
+    J -->|review| P["P. Human Review / Merge"]
+    P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
+
+    click A "./runtime-architecture.zh-CN.md#node-a" "Node A details"
+    click B "./runtime-architecture.zh-CN.md#node-b" "Node B details"
+    click C "./runtime-architecture.zh-CN.md#node-c" "Node C details"
+    click D "./runtime-architecture.zh-CN.md#node-d" "Node D details"
+    click E "./runtime-architecture.zh-CN.md#node-e" "Node E details"
+    click F "./runtime-architecture.zh-CN.md#node-f" "Node F details"
+    click G "./runtime-architecture.zh-CN.md#node-g" "Node G details"
+    click H "./runtime-architecture.zh-CN.md#node-h" "Node H details"
+    click I "./runtime-architecture.zh-CN.md#node-i" "Node I details"
+    click J "./runtime-architecture.zh-CN.md#node-j" "Node J details"
+    click K "./runtime-architecture.zh-CN.md#node-k" "Node K details"
+    click L "./runtime-architecture.zh-CN.md#node-l" "Node L details"
+    click M "./runtime-architecture.zh-CN.md#node-m" "Node M details"
+    click N "./runtime-architecture.zh-CN.md#node-n" "Node N details"
+    click O "./runtime-architecture.zh-CN.md#node-o" "Node O details"
+    click P "./runtime-architecture.zh-CN.md#node-p" "Node P details"
+    click Q "./runtime-architecture.zh-CN.md#node-q" "Node Q details"
 ```
 
-Blocked路径使用同一正式transition：before_run安全检查失败、task-level marker或runtime interruption都会变成 `blocked`，routing关闭，证据写入Issue，恢复时重新检查gate。
+**Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
+
+Node E是execution host前提，不是每个Task的串行步骤。Node J是状态同步中心：worker start、before_run blocker、after_run marker和runtime interruption最终都进入同一个正式transition路径。
+
+### 2.2 Blocked / resume流程
+
+```mermaid
+flowchart TD
+    H2["H. before_run safety"] -->|dirty + base drift| J2["J. GitHub.transition<br/>blocked"]
+    K2["K. Codex App Server"] --> M2["M. structured marker<br/>blocked / review / failed"]
+    M2 --> N2["N. after_run"]
+    N2 --> J2
+    O2["O. runtime interruption"] --> J2
+    J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
+    X --> Y["Human / external condition resolution"]
+    Y --> C2["C. dispatch gates re-check"]
+    C2 -->|PASS + Human GO| D2["D. routing restored"]
+    D2 --> F2["F. Symphony polling"]
+
+    click H2 "./runtime-architecture.zh-CN.md#node-h" "Node H details"
+    click J2 "./runtime-architecture.zh-CN.md#node-j" "Node J details"
+    click K2 "./runtime-architecture.zh-CN.md#node-k" "Node K details"
+    click M2 "./runtime-architecture.zh-CN.md#node-m" "Node M details"
+    click N2 "./runtime-architecture.zh-CN.md#node-n" "Node N details"
+    click O2 "./runtime-architecture.zh-CN.md#node-o" "Node O details"
+    click C2 "./runtime-architecture.zh-CN.md#node-c" "Node C details"
+    click D2 "./runtime-architecture.zh-CN.md#node-d" "Node D details"
+    click F2 "./runtime-architecture.zh-CN.md#node-f" "Node F details"
+```
+
+---
 
 ---
 
@@ -89,7 +143,9 @@ Excellent-Nd主要利用Symphony的 `after_create`、`before_run`、`after_run` 
 
 ## 4. 各节点处理与源码
 
-### ChatGPT / Human GO
+<a id="node-a"></a>
+
+### Node A — ChatGPT / Human GO
 
 源码:
 
@@ -97,9 +153,17 @@ Excellent-Nd主要利用Symphony的 `after_create`、`before_run`、`after_run` 
 - `skills/excellent-nd/references/task-schema.md`
 - `skills/excellent-nd/references/workflow.md`
 
-输出是GitHub Issue；整个Issue body就是Execution Packet。
+Human与ChatGPT确定目标、约束、验收条件、依赖、owner、execution target和Human GO。
 
-### Repository integration / dispatch gate
+<a id="node-b"></a>
+
+### Node B — GitHub Issue作为Durable Task
+
+Issue保存Execution Packet和持续证据。整个Issue body会作为Task上下文交给Codex。Issue native state、`workflow_status`、routing和repository-native status是不同状态面。
+
+<a id="node-c"></a>
+
+### Node C — Repository integration / dispatch gate
 
 源码:
 
@@ -108,11 +172,11 @@ Excellent-Nd主要利用Symphony的 `after_create`、`before_run`、`after_run` 
 - `scripts/repository_adapter.py::evaluate_gates`
 - `scripts/repository_adapter.py::preflight`
 
-Excellent-Nd Core不强制所有repository都有Status、Agent、Human Approval等固定字段。consumer repository只在 `.excellent-nd/repository.json` 配置自己真正需要的gate。
+Excellent-Nd Core不强制所有repository都有Status、Agent、Human Approval等固定字段。consumer repository只在 `.excellent-nd/repository.json` 配置自己真正需要的gate。必要数据无法取得、对象不唯一或configured gate失败时，fail closed。
 
-必要数据无法取得、对象不唯一、pagination导致无法证明完整性或configured gate失败时，fail closed。
+<a id="node-d"></a>
 
-### Routing / execution target
+### Node D — Routing / execution target
 
 源码:
 
@@ -122,7 +186,9 @@ Excellent-Nd Core不强制所有repository都有Status、Agent、Human Approval�
 
 routing label控制是否可dispatch，target label指定execution host。target inventory中的 `enabled: true` 不是online heartbeat。
 
-### Setup / service
+<a id="node-e"></a>
+
+### Node E — Execution host setup
 
 源码:
 
@@ -132,9 +198,11 @@ routing label控制是否可dispatch，target label指定execution host。target
 - `scripts/systemd_service.py`
 - `config/runtime-lock.json`
 
-setup检查依赖，下载并校验固定Symphony asset，生成WORKFLOW，执行smoke，保存host/target identity，并可安装systemd user service。
+setup检查依赖、下载并校验固定Symphony asset、生成WORKFLOW、执行smoke、保存host/target identity，并可安装或restart systemd user service。
 
-### Symphony polling / workspace
+<a id="node-f"></a>
+
+### Node F — Symphony polling
 
 源码:
 
@@ -142,9 +210,22 @@ setup检查依赖，下载并校验固定Symphony asset，生成WORKFLOW，执�
 - generated `.excellent-nd/WORKFLOW.md`
 - upstream Symphony
 
-polling实现本身属于Symphony，不在Excellent-Nd Python源码中。
+Symphony轮询tracker，并按active states和required labels筛选候选Issue。polling实现本身属于upstream Symphony。
 
-### before_run workspace safety
+<a id="node-g"></a>
+
+### Node G — Per-Issue workspace
+
+Symphony管理每Issue workspace生命周期。Excellent-Nd使用与Issue关联的workspace identity进行host-side安全检查。
+
+主要入口:
+
+- `config/WORKFLOW.md.tpl`
+- `runtime_observer.py::issue_from_workspace`
+
+<a id="node-h"></a>
+
+### Node H — before_run workspace safety
 
 源码:
 
@@ -157,19 +238,22 @@ polling实现本身属于Symphony，不在Excellent-Nd Python源码中。
 | dirty | same base | 保留并继续 |
 | dirty | drift | **Codex启动前blocked** |
 
-不会自动reset dirty + drift，因为可能删除尚未commit的有价值成果。
+不会自动reset dirty + drift，因为可能删除尚未commit的有效成果。
 
-### Worker pickup -> running
+<a id="node-i"></a>
+
+### Node I — Symphony worker pickup
 
 源码:
 
 - `runtime_observer.py::worker_started_issue`
 - `runtime_observer.py::run_observer`
-- `runtime_observer.py::GitHub.transition`
 
-只接受经过验证的exact Symphony worker-start event。检测后转为 `running`，再映射为repository event `execution_started`。
+只接受经过验证的exact Symphony worker-start event，作为实际开始执行的证据。
 
-### 正式lifecycle transition
+<a id="node-j"></a>
+
+### Node J — 正式GitHub lifecycle transition
 
 源码:
 
@@ -181,17 +265,27 @@ polling实现本身属于Symphony，不在Excellent-Nd Python源码中。
 
 1. 先关闭routing
 2. 更新Issue body的workflow status
-3. 如果使用GitHub Project authority，则更新repository-native status
+3. 如果配置了repository-native status则更新
 4. 写Workpad证据
-5. 只有前面全部成功后，才在running / scheduled状态恢复必要routing
+5. 只有前面全部成功后，才在需要routing的最终状态恢复routing
 
-中间失败时routing保持OFF。
+中间失败时routing保持OFF。worker pickup变为 `running`，并映射到repository event `execution_started`。
 
-### Codex执行与发布
+<a id="node-k"></a>
 
-WORKFLOW使用 `codex app-server` 和 `workspace-write`。Codex不通过危险权限绕过受保护的 `.git` metadata。GitHub发布使用WORKFLOW中说明的host-side `github_api`。
+### Node K — Codex App Server执行
 
-### Structured marker / after_run
+WORKFLOW在 `workspace-write` 下启动 `codex app-server`。Codex执行repository调查、修改和验证，不通过危险权限绕过受保护的Git metadata。
+
+<a id="node-l"></a>
+
+### Node L — Change / verification / Draft PR
+
+正常输出应包括changed files、verification、branch/commit、Draft PR、residual risk和Workpad handoff。仅仅“代码写完”不等于最终完成。
+
+<a id="node-m"></a>
+
+### Node M — Structured lifecycle marker
 
 marker:
 
@@ -204,13 +298,25 @@ schema:
 源码:
 
 - `validate_transition_marker`
-- `apply_transition_marker`
 - `transition_identity`
 - `validated_receipt`
 
-允许transition: `blocked / review / failed`。receipt把repository、Issue、run、attempt、transition绑定起来，保证幂等。marker缺失、损坏、未知transition或receipt异常时，不猜测，fail closed为blocked。
+允许transition: `blocked / review / failed`。
 
-### Runtime interruption
+<a id="node-n"></a>
+
+### Node N — after_run正式transition
+
+源码:
+
+- `WORKFLOW.md.tpl` 的 `after_run`
+- `runtime_observer.py::apply_transition_marker`
+
+host将structured marker送入同一个正式 `GitHub.transition` 路径。receipt绑定repository、Issue、run、attempt、transition实现幂等。marker缺失、损坏、未知transition或receipt异常时，不猜测，fail closed为blocked。
+
+<a id="node-o"></a>
+
+### Node O — Runtime interruption观察
 
 源码:
 
@@ -221,9 +327,17 @@ schema:
 
 例如quota exhaustion、长时间rate limit、turn timeout、App Server启动失败、agent异常退出。
 
-### Human review / result ingestion
+<a id="node-p"></a>
 
-review时routing关闭。Human负责review/merge。之后ChatGPT读取Issue、PR、verification并重新合并回原Plan。
+### Node P — Human review / merge
+
+进入review后routing关闭。Human review / merge仍然是Gate；runtime不会把“Codex写完代码”解释为最终验收。
+
+<a id="node-q"></a>
+
+### Node Q — ChatGPT result ingestion
+
+ChatGPT读取Issue、PR、Workpad和verification，将结果重新合并回原Plan。验收完成后可Close Issue，并进入下一个Task。
 
 ---
 
