@@ -60,25 +60,23 @@ flowchart TD
     H -. safety blocker .-> J
     J -->|review| P["P. Human Review / Merge"]
     P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
-
-
-    click A href "#node-a" "Node A details" _self
-    click B href "#node-b" "Node B details" _self
-    click C href "#node-c" "Node C details" _self
-    click D href "#node-d" "Node D details" _self
-    click E href "#node-e" "Node E details" _self
-    click F href "#node-f" "Node F details" _self
-    click G href "#node-g" "Node G details" _self
-    click H href "#node-h" "Node H details" _self
-    click I href "#node-i" "Node I details" _self
-    click J href "#node-j" "Node J details" _self
-    click K href "#node-k" "Node K details" _self
-    click L href "#node-l" "Node L details" _self
-    click M href "#node-m" "Node M details" _self
-    click N href "#node-n" "Node N details" _self
-    click O href "#node-o" "Node O details" _self
-    click P href "#node-p" "Node P details" _self
-    click Q href "#node-q" "Node Q details" _self
+    click A href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-a" "Node A details" _top
+    click B href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-b" "Node B details" _top
+    click C href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-c" "Node C details" _top
+    click D href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-d" "Node D details" _top
+    click E href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-e" "Node E details" _top
+    click F href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-f" "Node F details" _top
+    click G href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-g" "Node G details" _top
+    click H href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-h" "Node H details" _top
+    click I href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-i" "Node I details" _top
+    click J href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-j" "Node J details" _top
+    click K href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-k" "Node K details" _top
+    click L href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-l" "Node L details" _top
+    click M href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-m" "Node M details" _top
+    click N href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-n" "Node N details" _top
+    click O href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-o" "Node O details" _top
+    click P href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-p" "Node P details" _top
+    click Q href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-q" "Node Q details" _top
 ```
 
 **Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
@@ -99,17 +97,15 @@ flowchart TD
     Y --> C2["C. dispatch gates re-check"]
     C2 -->|PASS + Human GO| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
-
-
-    click H2 href "#node-h" "Node H details" _self
-    click J2 href "#node-j" "Node J details" _self
-    click K2 href "#node-k" "Node K details" _self
-    click M2 href "#node-m" "Node M details" _self
-    click N2 href "#node-n" "Node N details" _self
-    click O2 href "#node-o" "Node O details" _self
-    click C2 href "#node-c" "Node C details" _self
-    click D2 href "#node-d" "Node D details" _self
-    click F2 href "#node-f" "Node F details" _self
+    click H2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-h" "Node H details" _top
+    click J2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-j" "Node J details" _top
+    click K2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-k" "Node K details" _top
+    click M2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-m" "Node M details" _top
+    click N2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-n" "Node N details" _top
+    click O2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-o" "Node O details" _top
+    click C2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-c" "Node C details" _top
+    click D2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-d" "Node D details" _top
+    click F2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-f" "Node F details" _top
 ```
 
 ---
