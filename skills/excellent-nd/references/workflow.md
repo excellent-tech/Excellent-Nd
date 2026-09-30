@@ -6,7 +6,7 @@
 
 | 表示 | Machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | 人間による実行承認（Human GO）済みで実行可能 |
+| 実行予定 | `scheduled` | 現在のuser messageで `@excellent-nd` が明示され、実行可能 |
 | 処理中 | `running` | Codexが処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証が終わりレビュー待ち |
@@ -17,9 +17,9 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 
 ## 明示的dispatch gate
 
-通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` と、同じmessageまたは同一決定文脈の人間による実行承認（Human GO）の両方を要求する。Skillの自動選択はgateを満たさない。片方でも欠ければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
+通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、追加の `GO` / `Human GO` / 承認文を要求しない。Skillの自動選択はgateを満たさない。明示指定がなければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
 
-`review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。再開時は両gateを再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
+`review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。再開時は現在のuser messageで `@excellent-nd` の明示指定を再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
 通常Task用profileはrepository configのrouting labelとhost-specific target labelの両方をexecution-control条件として要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。target候補は対象repositoryの `.excellent-nd/targets/*.json` を参照し、固定的な台数を仮定しない。
 
@@ -56,7 +56,7 @@ running中にstatus表示目的で configured routing label を外さない。Co
 3. Symphonyがdispatch / continuationしないようexecution-control条件を外す。
 4. execution-target routing identityは変更しない。
 5. 人間回答をIssueへ保存する。
-6. 現在のuser messageで `@excellent-nd` と人間による実行承認（Human GO）を再確認し、resume reasonをWorkpadへ保存する。
+6. 現在のuser messageで `@excellent-nd` の明示指定を再確認し、resume reasonをWorkpadへ保存する。別個の承認フレーズは要求しない。
 7. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
 8. 同じTask threadのcontinuationを優先する。
 
