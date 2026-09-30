@@ -2,7 +2,7 @@
 
 ## 目的
 
-Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から Human GO 後に 1 件以上の Task を GitHub Issue として実行し、結果を元の ChatGPT 会話へ取り込む Conversation-first / Plan-and-Execute ワークフローを目指す。
+Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から、現在のuser messageで `@excellent-nd` が明示された Task を GitHub Issue として実行し、結果を元の ChatGPT 会話へ取り込む Conversation-first / Plan-and-Execute ワークフローを目指す。
 
 現段階では、公開可能な設計整理と V1 の end-to-end 検証を優先する。Symphony や Codex の実行基盤を再実装せず、未使用の将来機能を先行して増やさない。
 
@@ -24,12 +24,12 @@ Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から Hum
 
 ## V1 の方針
 
-- 中心フローは ChatGPT の Plan → Task分割 / 担当配分 → Human GO → GitHub Issues → Symphony / Codex → GitHub Result → 人間の明示的な取り込み → ChatGPT とする。
+- 中心フローは ChatGPT の Plan → Task分割 / 担当配分 → user messageでの `@excellent-nd` 明示 → GitHub Issues → Symphony / Codex → GitHub Result → 人間の明示的な取り込み → ChatGPT とする。
 - 1 ChatGPT Chat から 1..N Task を生成できる。
 - 原則 1 Task = 1 Codex thread とし、同じ Task の continuation は同一 thread を優先する。
 - 複数 Task を複数担当へ概算負荷比率で割り当てられる。
 - V1 で実行する Task は GitHub Issue として Durable 化する。
-- 通常の実行 Task は GitHub Issue → Symphony → Codex で実行する。Symphony 未導入 host の runtime bootstrap だけは、Human GO と Issue 永続化後に対象 host 上の Codex CLI 等から人間が明示的に開始できる。
+- 通常の実行 Task は GitHub Issue → Symphony → Codex で実行する。Symphony 未導入 host の runtime bootstrap だけは、現在のuser messageで `@excellent-nd` を明示し Issue 永続化した後に、対象 host 上の Codex CLI 等から人間が明示的に開始できる。
 - bootstrap Issue には未導入 profile の routing label / field を要求せず、通常 Task 用の execution-control 条件を付けない。runtime / profile の smoke verification 後、別の通常 Task で single Task E2E を行う。
 - bootstrap は通常 Task の manual execution 経路ではない。runtime 検証後は Issue-first execution へ移行し、後続 host も既存経路で provisioning できない場合に限り同じ限定規約を使う。
 - 1 Issue の execution target は固定し、host 移行時は checkpoint を持つ後継 Issue を作る。

@@ -265,7 +265,7 @@ python3 scripts/repository_adapter.py \
   --issue 123
 ```
 
-すべてのconfigured gateがPASSし、Chat上の `@excellent-nd` + Human GO、target routing、repository-native lock/claim等が成立した場合だけdispatchする。
+すべてのconfigured gateがPASSし、現在のuser messageで `@excellent-nd` が明示され、target routing、repository-native lock/claim等が成立した場合だけdispatchする。`@excellent-nd` の明示指定自体を人間の実行指示として扱い、追加の承認フレーズは要求しない。
 
 ### Runtime event mapping
 

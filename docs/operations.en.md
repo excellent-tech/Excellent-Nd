@@ -103,12 +103,12 @@ The service obtains a token from the same user's `gh auth token` at startup and 
 
 ### 11. Run the first single-Task E2E
 
-- **Action**: Run a normal Task only when the current user message has both `@excellent-nd` and explicit Human GO.
+- **Action**: Run a normal Task only when the current user message explicitly contains `@excellent-nd`. Treat that explicit mention itself as the human execution instruction; do not require a separate approval phrase.
 - **Command / UI**: Complete `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → Human review`.
 - **Expected result**: Change, verification, and PR are traceable; review removes the routing label in the same decision.
 - **If OK**: Begin normal operations.
 - **If not OK**: Inspect logs, Workpad, diff, verification, and PR; dispatch no more Tasks until resolved.
-Installing the Skill does not install the runtime. Bootstrap on an unprepared host is a limited exception explicitly started by a human after Human GO and Issue persistence; it is not the normal manual execution path.
+Installing the Skill does not install the runtime. Bootstrap on an unprepared host is a limited exception explicitly started by a human after the current user message names `@excellent-nd` and the Issue is persisted; it is not the normal manual execution path.
 
 ## Operations / FAQ
 
@@ -118,7 +118,7 @@ A. Use it in a new conversation or when the Skill is not selected automatically.
 
 ### Q. Can I create only a Plan without routing work?
 
-A. Yes. Define the Plan, Task split, owners, approximate workload, and target candidates. Do not create or dispatch Issues before Human GO.
+A. Yes. Define the Plan, Task split, owners, approximate workload, and target candidates without `@excellent-nd`; do not route executable work until the current user message explicitly names `@excellent-nd`.
 
 ### Q. What is the normal flow?
 
@@ -183,11 +183,11 @@ Restart with `systemctl --user restart 'excellent-nd@<repository-instance>.servi
 
 The observer follows observable events in the same Symphony process tree. Only issue-scoped usage exhaustion, long rate limits, turn timeout, App Server startup failure, or abnormal agent exit creates a sanitized Workpad entry with category, error, occurred_at, available reset / retry and session / attempt values, checkpoint availability, remaining work, and resume condition. Short retries remain with Symphony and create no comment. Missing Issue or exact error data is reported as unavailable, never guessed.
 
-An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and removal of `symphony-ready` in the same Issue update. Review also removes routing in the same decision. Resume only after the current user message again contains `@excellent-nd` and Human GO.
+An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and removal of `symphony-ready` in the same Issue update. Review also removes routing in the same decision. Resume only after the current user message again explicitly contains `@excellent-nd`; no separate approval phrase is required.
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --explicit-mention --human-go
+  --reason "resume condition verified" --explicit-mention
 ```
 
 This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. Prefer the same Issue / thread; never redispatch unconditionally.
@@ -208,7 +208,7 @@ If a private hostname would leak infrastructure in a public repository, use a no
 | Label | Color | Description |
 | --- | --- | --- |
 | `symphony-ready` | `0E8A16` | Routing / execution control; not workflow status |
-| `nd-status:scheduled` | `C2E0C6` | Human GO complete; waiting to run |
+| `nd-status:scheduled` | `C2E0C6` | Explicit `@excellent-nd` instruction received; waiting to run |
 | `nd-status:running` | `1D76DB` | Codex execution in progress |
 | `nd-status:blocked` | `D93F0B` | Waiting for human, external condition, or quota |
 | `nd-status:review` | `FBCA04` | Waiting for Human review |

@@ -25,7 +25,7 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 
 ## Dispatch gate
 
-通常Taskのrouting labelを追加・復元する時点のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。Task metadataや過去messageだけでは許可しない。dispatchableにする時は対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelと、同configのtarget prefixから導出したtarget labelの両方を要求する。`review` / `blocked`では同じIssue更新でconfigured routing labelを外し、target labelはcorrelation用に残してよい。label名を固定値として仮定しない。
+通常Taskのrouting labelを追加・復元する時点のuser messageに、case-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、別個の承認フレーズは要求しない。Task metadata、過去message、Skillの自動選択だけでは許可しない。dispatchableにする時は対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelと、同configのtarget prefixから導出したtarget labelの両方を要求する。`review` / `blocked`では同じIssue更新でconfigured routing labelを外し、target labelはcorrelation用に残してよい。label名を固定値として仮定しない。
 
 ## 参照規則
 
