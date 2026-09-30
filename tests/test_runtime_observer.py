@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +9,12 @@ from unittest.mock import Mock, patch
 from scripts.repository_config import default_config
 from scripts.runtime_observer import (
     GitHub,
+    LogFollowError,
+    MAX_LOG_LINE_BYTES,
+    MAX_LOG_POLL_BYTES,
     MARKER_FILENAME,
+    RecentKeys,
+    RotatingLogFollower,
     apply_hook_transition,
     apply_transition_marker,
     classify_interruption,
@@ -18,6 +24,7 @@ from scripts.runtime_observer import (
     extract_context,
     next_labels,
     prepare_workspace,
+    process_runtime_line,
     runtime_event_for,
     sanitize,
     set_workflow_status,
@@ -175,6 +182,261 @@ class ObserverTest(unittest.TestCase):
         ):
             with self.subTest(line=line):
                 self.assertIsNone(worker_started_issue(line))
+
+    def test_existing_disk_log_worker_start_is_ignored(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.write_text(
+                "Starting worker attempt for issue_id=42 issue_identifier=GH-42\n",
+                encoding="utf-8",
+            )
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+
+            self.assertEqual(follower.poll(), [])
+
+    def test_appended_disk_log_worker_start_is_detected_once(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            line = "Starting worker attempt for issue_id=42 issue_identifier=GH-42"
+
+            with log.open("a", encoding="utf-8") as stream:
+                stream.write(line + "\n")
+
+            self.assertEqual(follower.poll(), [line])
+            self.assertEqual(follower.poll(), [])
+
+    def test_partial_disk_log_line_waits_for_newline(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            line = "Starting worker attempt for issue_id=42 issue_identifier=GH-42"
+
+            with log.open("a", encoding="utf-8") as stream:
+                stream.write(line)
+            self.assertEqual(follower.poll(), [])
+
+            with log.open("a", encoding="utf-8") as stream:
+                stream.write("\n")
+            self.assertEqual(follower.poll(), [line])
+
+    def test_oversized_partial_log_line_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            with log.open("ab") as stream:
+                stream.write(b"x" * (MAX_LOG_LINE_BYTES + 1))
+
+            with self.assertRaisesRegex(LogFollowError, "maximum line size"):
+                while True:
+                    follower.poll()
+
+    def test_rotation_reads_old_inode_and_new_active_log(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            old_line = "old inode line"
+            new_line = "new active line"
+
+            with log.open("ab", buffering=0) as old_writer:
+                os.replace(log, Path(f"{log}.1"))
+                old_writer.write((old_line + "\n").encode())
+                log.write_text(new_line + "\n", encoding="utf-8")
+
+            self.assertCountEqual(follower.poll(), [old_line, new_line])
+
+    def test_large_unlinked_old_inode_is_drained_before_close(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            expected = [f"line-{number:06d}" for number in range(20000)]
+            log.write_text("\n".join(expected) + "\n", encoding="utf-8")
+            log.unlink()
+
+            actual = []
+            for _ in range(10):
+                actual.extend(follower.poll())
+                if not follower.streams:
+                    break
+
+            self.assertEqual(actual, expected)
+
+    def test_new_numbered_segment_is_followed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            Path(f"{log}.1").touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+
+            Path(f"{log}.2").write_text("new segment\n", encoding="utf-8")
+
+            self.assertEqual(follower.poll(), ["new segment"])
+
+    def test_truncated_active_log_is_followed_without_old_replay(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.write_text("historical worker start\n", encoding="utf-8")
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+
+            log.write_text("new worker start\n", encoding="utf-8")
+
+            self.assertEqual(follower.poll(), ["new worker start"])
+            self.assertEqual(follower.poll(), [])
+
+    def test_new_segment_truncate_and_regrow_during_read_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            line = "Starting worker attempt for issue_id=42 issue_identifier=GH-42"
+            log.write_text(("old\n" * 20000) + line + "\n", encoding="utf-8")
+
+            def replace_then_read(stream, size):
+                log.write_text("replacement\n" * 10000, encoding="utf-8")
+                return stream.read(size)
+
+            with patch.object(
+                RotatingLogFollower,
+                "_read_bytes",
+                side_effect=replace_then_read,
+            ), self.assertRaisesRegex(LogFollowError, "changed during read"):
+                follower.poll()
+
+    def test_excessive_poll_backlog_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            with log.open("ab") as stream:
+                stream.truncate(MAX_LOG_POLL_BYTES + 1)
+
+            with self.assertRaisesRegex(LogFollowError, "poll backlog"):
+                follower.poll()
+
+    def test_renamed_segment_is_not_replayed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            line = "Starting worker attempt for issue_id=42 issue_identifier=GH-42"
+            with log.open("a", encoding="utf-8") as stream:
+                stream.write(line + "\n")
+            self.assertEqual(follower.poll(), [line])
+
+            os.replace(log, Path(f"{log}.1"))
+
+            self.assertEqual(follower.poll(), [])
+
+    def test_missing_authoritative_log_fails_closed(self):
+        now = [0.0]
+        with tempfile.TemporaryDirectory() as temporary:
+            follower = RotatingLogFollower(
+                Path(temporary) / "symphony.log",
+                missing_timeout=1.0,
+                clock=lambda: now[0],
+            )
+            self.addCleanup(follower.close)
+            self.assertEqual(follower.poll(), [])
+            now[0] = 2.0
+
+            with self.assertRaisesRegex(LogFollowError, "unavailable"):
+                follower.poll()
+
+    def test_stale_authoritative_log_without_new_process_activity_fails_closed(self):
+        now = [0.0]
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.write_text("historical line\n", encoding="utf-8")
+            follower = RotatingLogFollower(
+                log,
+                missing_timeout=1.0,
+                clock=lambda: now[0],
+            )
+            self.addCleanup(follower.close)
+            self.assertEqual(follower.poll(), [])
+            now[0] = 2.0
+
+            with self.assertRaisesRegex(LogFollowError, "no new activity"):
+                follower.poll()
+
+    def test_child_exit_requires_authoritative_log_activity_immediately(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            follower = RotatingLogFollower(Path(temporary) / "symphony.log")
+            self.addCleanup(follower.close)
+
+            with self.assertRaisesRegex(LogFollowError, "no new activity"):
+                follower.assert_available()
+
+    def test_child_exit_rejects_disappeared_authoritative_log(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.touch()
+            follower = RotatingLogFollower(log)
+            self.addCleanup(follower.close)
+            log.write_text("startup\n", encoding="utf-8")
+            follower.poll()
+            log.unlink()
+            follower.poll()
+
+            with self.assertRaisesRegex(LogFollowError, "unavailable"):
+                follower.assert_available()
+
+    def test_recent_transition_keys_are_bounded(self):
+        recorded = RecentKeys(limit=2)
+        recorded.add((42, "first"))
+        recorded.add((42, "second"))
+        recorded.add((42, "third"))
+
+        self.assertEqual(len(recorded), 2)
+        self.assertNotIn((42, "first"), recorded)
+        self.assertIn((42, "third"), recorded)
+
+    def test_unreadable_authoritative_log_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "symphony.log"
+            log.mkdir()
+
+            with self.assertRaises(LogFollowError):
+                RotatingLogFollower(log)
+
+    def test_disk_log_worker_start_uses_formal_running_transition(self):
+        github = Mock()
+        recorded = set()
+        line = "Starting worker attempt for issue_id=42 issue_identifier=GH-42"
+
+        process_runtime_line(github, line, recorded)
+        process_runtime_line(github, line, recorded)
+
+        github.transition.assert_called_once()
+        args, kwargs = github.transition.call_args
+        self.assertEqual(args[0:2], (42, "running"))
+        self.assertEqual(kwargs, {})
+
+    def test_tui_text_cannot_trigger_worker_start(self):
+        github = Mock()
+
+        process_runtime_line(
+            github,
+            "Dashboard: worker GH-42 looks active; Starting worker attempt unavailable",
+            set(),
+        )
+
+        github.transition.assert_not_called()
 
     @patch("scripts.runtime_observer.transition_event")
     def test_running_transition_restores_routing_only_after_project_update(self, update):
@@ -399,6 +661,15 @@ class ObserverTest(unittest.TestCase):
         self.assertEqual(
             symphony_command(args),
             ["/tmp/symphony", "/tmp/WORKFLOW.md"],
+        )
+        self.assertEqual(
+            symphony_command(args, logs_root=Path("/tmp/runtime")),
+            [
+                "/tmp/symphony",
+                "--logs-root",
+                "/tmp/runtime",
+                "/tmp/WORKFLOW.md",
+            ],
         )
 
         args.acknowledge_unguarded_preview = True

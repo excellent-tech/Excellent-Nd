@@ -8,10 +8,13 @@ import hashlib
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
+from collections import deque
 from pathlib import Path
 
 from repository_adapter import preflight as repository_preflight
@@ -34,6 +37,234 @@ RECEIPT_SCHEMA = "excellent-nd/runtime-transition-receipt@v1"
 WORKER_START = re.compile(
     r"\bStarting worker attempt for issue_id=\S+ issue_identifier=GH-(\d+)\b"
 )
+SYMPHONY_LOG_SEGMENTS = 5
+LOG_POLL_INTERVAL = 0.1
+MAX_LOG_POLL_BYTES = 1024 * 1024
+MAX_LOG_LINE_BYTES = 256 * 1024
+RECENT_TRANSITION_KEYS = 4096
+
+
+class LogFollowError(RuntimeError):
+    """The authoritative Symphony log cannot be followed safely."""
+
+
+class RecentKeys:
+    """Bounded fingerprints for suppressing replayed lifecycle records."""
+
+    def __init__(self, limit=RECENT_TRANSITION_KEYS):
+        self.limit = limit
+        self.order = deque()
+        self.values = set()
+
+    @staticmethod
+    def _fingerprint(value):
+        return hashlib.sha256(repr(value).encode("utf-8", errors="replace")).digest()
+
+    def __contains__(self, value):
+        return self._fingerprint(value) in self.values
+
+    def add(self, value):
+        fingerprint = self._fingerprint(value)
+        if fingerprint in self.values:
+            return
+        if len(self.order) >= self.limit:
+            self.values.remove(self.order.popleft())
+        self.order.append(fingerprint)
+        self.values.add(fingerprint)
+
+    def __len__(self):
+        return len(self.order)
+
+
+class RotatingLogFollower:
+    """Follow one active log plus numbered rotations without replaying startup data."""
+
+    def __init__(self, base_path, missing_timeout=5.0, clock=time.monotonic):
+        self.base_path = Path(base_path)
+        self.missing_timeout = missing_timeout
+        self.clock = clock
+        self.started_at = clock()
+        self.activity_seen = False
+        self.last_bytes_read = 0
+        self.last_referenced = set()
+        self.streams = {}
+        self._scan(initial=True)
+
+    def _paths(self):
+        return [self.base_path] + [
+            Path(f"{self.base_path}.{number}")
+            for number in range(1, SYMPHONY_LOG_SEGMENTS + 1)
+        ]
+
+    def _open(self, path, initial):
+        try:
+            stream = path.open("rb")
+        except FileNotFoundError:
+            return None
+        except OSError as error:
+            raise LogFollowError(f"authoritative Symphony log is unreadable: {error}") from error
+        metadata = os.fstat(stream.fileno())
+        if not stat.S_ISREG(metadata.st_mode):
+            stream.close()
+            raise LogFollowError("authoritative Symphony log is not a regular file")
+        identity = (metadata.st_dev, metadata.st_ino)
+        if identity in self.streams:
+            stream.close()
+            return identity
+        if len(self.streams) >= (SYMPHONY_LOG_SEGMENTS + 1) * 2:
+            stream.close()
+            raise LogFollowError("too many rotating Symphony log inodes are active")
+        offset = metadata.st_size if initial else 0
+        stream.seek(offset)
+        tail_size = min(offset, 64)
+        tail = os.pread(stream.fileno(), tail_size, offset - tail_size) if tail_size else b""
+        self.streams[identity] = {
+            "stream": stream,
+            "offset": offset,
+            "known_size": metadata.st_size,
+            "partial": b"",
+            "tail": tail,
+            "orphan_polls": 0,
+        }
+        return identity
+
+    def _scan(self, initial=False):
+        identities = set()
+        for path in self._paths():
+            try:
+                metadata = path.stat()
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                raise LogFollowError(f"authoritative Symphony log is unavailable: {error}") from error
+            if not stat.S_ISREG(metadata.st_mode):
+                raise LogFollowError("authoritative Symphony log is not a regular file")
+            identity = self._open(path, initial)
+            if identity is not None:
+                identities.add(identity)
+        return identities
+
+    @staticmethod
+    def _read_bytes(stream, size):
+        return stream.read(size)
+
+    @staticmethod
+    def _read(entry):
+        stream = entry["stream"]
+        metadata = os.fstat(stream.fileno())
+        offset = entry["offset"]
+        tail = entry["tail"]
+        tail_offset = offset - len(tail)
+        rewritten = metadata.st_size < offset or (
+            tail and os.pread(stream.fileno(), len(tail), tail_offset) != tail
+        )
+        if rewritten:
+            if offset < entry["known_size"]:
+                raise LogFollowError(
+                    "authoritative Symphony log was rewritten with unread data"
+                )
+            stream.seek(0)
+            entry.update(offset=0, known_size=metadata.st_size, partial=b"", tail=b"")
+            offset = 0
+            tail = b""
+            tail_offset = 0
+        else:
+            entry["known_size"] = max(entry["known_size"], metadata.st_size)
+
+        lines = []
+        bytes_read = 0
+        backlog = metadata.st_size - offset
+        if backlog > MAX_LOG_POLL_BYTES:
+            raise LogFollowError("authoritative Symphony log exceeded maximum poll backlog")
+        snapshot = os.pread(stream.fileno(), backlog, offset)
+        if len(snapshot) != backlog:
+            raise LogFollowError("authoritative Symphony log changed during read")
+        snapshot_digest = hashlib.sha256(snapshot).digest()
+        del snapshot
+        chunk = RotatingLogFollower._read_bytes(stream, backlog)
+        current_digest = hashlib.sha256(
+            os.pread(stream.fileno(), backlog, offset)
+        ).digest()
+        if (
+            len(chunk) != backlog
+            or hashlib.sha256(chunk).digest() != snapshot_digest
+            or current_digest != snapshot_digest
+        ):
+            raise LogFollowError("authoritative Symphony log changed during read")
+        if chunk:
+            bytes_read += len(chunk)
+            entry["offset"] = stream.tell()
+            entry["tail"] = (entry["tail"] + chunk)[-64:]
+            parts = (entry["partial"] + chunk).split(b"\n")
+            entry["partial"] = parts.pop()
+            if len(entry["partial"]) > MAX_LOG_LINE_BYTES or any(
+                len(part) > MAX_LOG_LINE_BYTES for part in parts
+            ):
+                raise LogFollowError("authoritative Symphony log exceeded maximum line size")
+            lines.extend(part.rstrip(b"\r").decode("utf-8", errors="replace") for part in parts)
+        return lines, bytes_read
+
+    def poll(self):
+        referenced = self._scan()
+        lines = []
+        self.last_bytes_read = 0
+
+        bytes_by_identity = {}
+        read_identities = set()
+
+        def read(identity):
+            entry = self.streams[identity]
+            try:
+                new_lines, bytes_read = self._read(entry)
+                lines.extend(new_lines)
+                self.last_bytes_read += bytes_read
+                bytes_by_identity[identity] = bytes_read
+                read_identities.add(identity)
+                self.activity_seen = self.activity_seen or bytes_read > 0
+            except OSError as error:
+                raise LogFollowError(f"authoritative Symphony log follow failed: {error}") from error
+
+        for identity in list(self.streams):
+            read(identity)
+
+        # A rotation can happen while the old descriptors are being drained.
+        referenced = self._scan()
+        for identity in referenced - read_identities:
+            read(identity)
+        self.last_referenced = referenced
+
+        for identity, entry in list(self.streams.items()):
+            if identity in referenced:
+                entry["orphan_polls"] = 0
+                continue
+            if bytes_by_identity.get(identity, 0) > 0:
+                entry["orphan_polls"] = 0
+                continue
+            entry["orphan_polls"] += 1
+            if entry["orphan_polls"] < 2:
+                continue
+            if entry["partial"]:
+                raise LogFollowError("rotated Symphony log ended with an incomplete line")
+            entry["stream"].close()
+            del self.streams[identity]
+
+        if self.clock() - self.started_at >= self.missing_timeout:
+            if not referenced and not self.streams:
+                raise LogFollowError("authoritative Symphony log is unavailable")
+            if not self.activity_seen:
+                raise LogFollowError("authoritative Symphony log has no new activity")
+        return lines
+
+    def assert_available(self):
+        if not self.activity_seen:
+            raise LogFollowError("authoritative Symphony log has no new activity")
+        if not self.last_referenced:
+            raise LogFollowError("authoritative Symphony log is unavailable")
+
+    def close(self):
+        for entry in self.streams.values():
+            entry["stream"].close()
+        self.streams.clear()
 
 BLOCKING_PATTERNS = (
     ("turn_timeout", re.compile(r"(turn timeout|turn timed out)", re.I)),
@@ -470,51 +701,74 @@ Error text is sanitized. Raw logs and credentials are not copied here.
 """
 
 
-def symphony_command(args):
+def symphony_command(args, logs_root=None):
     command = [args.symphony]
     if args.acknowledge_unguarded_preview:
         command.append(SYMPHONY_ACK_FLAG)
+    if logs_root is not None:
+        command.extend(["--logs-root", str(logs_root)])
     command.append(args.workflow)
     return command
+
+
+def process_runtime_line(github, line, recorded):
+    started_issue = worker_started_issue(line)
+    start_key = (started_issue, "worker_start", line)
+    if started_issue is not None and start_key not in recorded:
+        github.transition(started_issue, "running", worker_started_comment())
+        recorded.add(start_key)
+    category = classify_interruption(line)
+    context = extract_context(line)
+    hook_key = (context["issue_number"], line)
+    if (
+        context["issue_number"]
+        and hook_key not in recorded
+        and apply_hook_transition(github, line, context)
+    ):
+        recorded.add(hook_key)
+    key = (context["issue_number"], category)
+    if category and context["issue_number"] and key not in recorded:
+        github.transition(
+            context["issue_number"],
+            "blocked",
+            interruption_workpad(category, line, context),
+            block_kind="external",
+        )
+        recorded.add(key)
 
 
 def run_observer(args):
     config = read_config(args.repository_config)
     github = GitHub(args.repo, config)
+    logs_root = Path.cwd()
+    follower = RotatingLogFollower(logs_root / "log" / "symphony.log")
     process = subprocess.Popen(
-        symphony_command(args),
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        text=True, bufsize=1,
+        symphony_command(args, logs_root=logs_root),
+        stderr=subprocess.STDOUT,
     )
-    recorded = set()
-    assert process.stdout is not None
-    for raw in process.stdout:
-        sys.stdout.write(raw)
-        line = raw.rstrip()
-        started_issue = worker_started_issue(line)
-        start_key = (started_issue, "worker_start", line)
-        if started_issue is not None and start_key not in recorded:
-            github.transition(started_issue, "running", worker_started_comment())
-            recorded.add(start_key)
-        category = classify_interruption(line)
-        context = extract_context(line)
-        hook_key = (context["issue_number"], line)
-        if (
-            context["issue_number"]
-            and hook_key not in recorded
-            and apply_hook_transition(github, line, context)
-        ):
-            recorded.add(hook_key)
-        key = (context["issue_number"], category)
-        if category and context["issue_number"] and key not in recorded:
-            github.transition(
-                context["issue_number"],
-                "blocked",
-                interruption_workpad(category, line, context),
-                block_kind="external",
-            )
-            recorded.add(key)
-    return process.wait()
+    recorded = RecentKeys()
+    try:
+        while process.poll() is None:
+            for line in follower.poll():
+                process_runtime_line(github, line, recorded)
+            time.sleep(LOG_POLL_INTERVAL)
+        while True:
+            for line in follower.poll():
+                process_runtime_line(github, line, recorded)
+            if follower.last_bytes_read == 0:
+                break
+        follower.assert_available()
+        return process.wait()
+    except Exception:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+        raise
+    finally:
+        follower.close()
 
 
 def decision_comment(title, reason):
