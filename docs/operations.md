@@ -116,7 +116,7 @@ Skill の導入だけでは実行環境の導入は完了しない。未導入�
 
 ### Q. `@excellent-nd` はいつ付けますか？
 
-A. Codex dispatchを要求する現在のuser messageに毎回明示します（大文字・小文字は区別しません）。この `@excellent-nd` 指定自体を人間の実行指示として扱うため、`GO`、`Human GO`、承認文などの追加フレーズは不要です。Skillが自動選択された場合は実行指示とは扱わず、ChatGPT内の計画・調査・安全なGitHub操作までとし、`symphony-ready`を追加・復元しません。
+A. Codex dispatchを要求する現在のuser messageに毎回明示します（大文字・小文字は区別しません）。この `@excellent-nd` 指定自体を人間の実行指示として扱うため、別個の承認フレーズは不要です。Skillが自動選択された場合は実行指示とは扱わず、ChatGPT内の計画・調査・安全なGitHub操作までとし、`symphony-ready`を追加・復元しません。
 
 ### Q. 計画だけを作り、実行へ routing しないことはできますか？
 
