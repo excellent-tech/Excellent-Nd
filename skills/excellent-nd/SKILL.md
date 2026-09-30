@@ -11,7 +11,7 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 
 ## 基本ルール
 
-1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` と人間による実行承認（Human GO）の両方を要求する。
+1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間による実行指示として扱い、別個の承認フレーズを要求しない。
 2. Skillの自動選択はdispatch承認ではない。gate未成立時はPlan、調査、安全なGitHub操作までに留める。
 3. ChatGPTで安全に完結するrepository調査、Issue/PR更新、小規模な設定変更、review、result ingestionをCodex dispatchより優先する。
 4. 1.0.xでは原則1 Task = 1 GitHub Issue = 1 Codex threadとする。同一Taskのcontinuationは同一threadを優先する。
@@ -76,7 +76,7 @@ repository integration未完了、またはexisting-managed label不足時はfai
 
 ## Plan
 
-GO前に対象repositoryのrepository configとtarget台帳を確認し、最低限以下を提示する。
+dispatch前に対象repositoryのrepository configとtarget台帳を確認し、最低限以下を提示する。
 
 - Task分割
 - 依存関係
@@ -86,9 +86,9 @@ GO前に対象repositoryのrepository configとtarget台帳を確認し、最低
 
 30:70等はTask件数比ではなく概算総負荷として扱う。
 
-## 人間による実行承認（Human GO）
+## 明示的な実行指示
 
-現在のuser messageに `@excellent-nd` とHuman GOの両方がある場合だけ通常Taskをdispatchableにする。
+現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、`GO`、`Human GO`、承認文などの追加フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
 
 Task Issueには:
 
@@ -123,7 +123,7 @@ Symphonyへ委ねる:
 
 ## Bootstrap prerequisite
 
-最初のhostにSymphonyがなく通常経路を利用できない場合、Human GO後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
+最初のhostにSymphonyがなく通常経路を利用できない場合、現在のuser messageで `@excellent-nd` が明示された後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
 
 bootstrap前提:
 
@@ -142,7 +142,7 @@ blocked時:
 - workflow statusをblockedへ更新する
 - repository configで定義されたrouting labelを外す
 - target identity labelはcorrelation用に維持できる
-- resumeには再度 `@excellent-nd` + Human GOを要求する
+- resumeには現在のuser messageで再度 `@excellent-nd` の明示指定を要求する。別個の承認フレーズは要求しない
 - 同一Issue / thread continuationを優先する
 
 ## レビュー
