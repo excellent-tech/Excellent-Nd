@@ -695,7 +695,7 @@ def interruption_workpad(category, line, context):
 - attempt: `{shown(context["attempt"])}`
 - last checkpoint (branch / commit / PR): 取得不能（runtime event に非搭載）。既存 Workpad / PR を確認する。
 - remaining work: interruption 発生時点の Acceptance criteria 未完了項目を確認する。
-- recommended resume condition: repository-native gatesを満たした後、現在の user message で明示的な `@excellent-nd` と人間による実行承認（Human GO）を確認する。
+- recommended resume condition: repository-native gatesを満たした後、現在の user message で明示的な `@excellent-nd` を確認する。この明示指定自体を人間の実行指示として扱い、別個の承認フレーズは要求しない。
 
 Error text is sanitized. Raw logs and credentials are not copied here.
 """
@@ -805,7 +805,6 @@ def main(argv=None):
     resume.add_argument("--issue", type=int, required=True)
     resume.add_argument("--reason", required=True)
     resume.add_argument("--explicit-mention", action="store_true")
-    resume.add_argument("--human-go", action="store_true")
     add_repository_config_argument(resume)
 
     state = sub.add_parser("state")
@@ -860,8 +859,8 @@ def main(argv=None):
             receipt_dir,
         ) in ("applied", "duplicate", "blocked") else 1
     if args.command == "resume":
-        if not (args.explicit_mention and args.human_go):
-            parser.error("resume requires --explicit-mention and --human-go")
+        if not args.explicit_mention:
+            parser.error("resume requires --explicit-mention")
         github.transition(
             args.issue,
             "scheduled",
