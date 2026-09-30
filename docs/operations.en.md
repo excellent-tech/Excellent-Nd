@@ -103,7 +103,7 @@ The service obtains a token from the same user's `gh auth token` at startup and 
 
 ### 11. Run the first single-Task E2E
 
-- **Action**: Run a normal Task only when the current user message explicitly contains `@excellent-nd`. Treat that explicit mention itself as the human execution instruction; do not require a separate GO, Human GO, or approval phrase.
+- **Action**: Run a normal Task only when the current user message explicitly contains `@excellent-nd`. Treat that explicit mention itself as the human execution instruction; do not require a separate approval phrase.
 - **Command / UI**: Complete `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → Human review`.
 - **Expected result**: Change, verification, and PR are traceable; review removes the routing label in the same decision.
 - **If OK**: Begin normal operations.
