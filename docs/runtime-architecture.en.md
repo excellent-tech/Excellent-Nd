@@ -37,7 +37,7 @@ Excellent-Nd is conversation-first for humans and Issue-first internally. The Is
 
 ### 2.1 Normal flow mapped to Nodes A-Q
 
-Each block displays its **A-Q** Node identifier. When Mermaid links are enabled by the renderer, clicking a block jumps to the matching detail section. If diagram links are unavailable, use the Node index below the diagram.
+Each block displays its **A-Q** Node identifier. GitHub's Mermaid renderer does not expose diagram click links consistently across views, so the diagram uses A-Q identifiers only. The Node index immediately below is the canonical navigation path.
 
 ```mermaid
 flowchart TD
@@ -61,23 +61,6 @@ flowchart TD
     J -->|review| P["P. Human Review / Merge"]
     P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
 
-    click A "./runtime-architecture.en.md#node-a" "Node A details"
-    click B "./runtime-architecture.en.md#node-b" "Node B details"
-    click C "./runtime-architecture.en.md#node-c" "Node C details"
-    click D "./runtime-architecture.en.md#node-d" "Node D details"
-    click E "./runtime-architecture.en.md#node-e" "Node E details"
-    click F "./runtime-architecture.en.md#node-f" "Node F details"
-    click G "./runtime-architecture.en.md#node-g" "Node G details"
-    click H "./runtime-architecture.en.md#node-h" "Node H details"
-    click I "./runtime-architecture.en.md#node-i" "Node I details"
-    click J "./runtime-architecture.en.md#node-j" "Node J details"
-    click K "./runtime-architecture.en.md#node-k" "Node K details"
-    click L "./runtime-architecture.en.md#node-l" "Node L details"
-    click M "./runtime-architecture.en.md#node-m" "Node M details"
-    click N "./runtime-architecture.en.md#node-n" "Node N details"
-    click O "./runtime-architecture.en.md#node-o" "Node O details"
-    click P "./runtime-architecture.en.md#node-p" "Node P details"
-    click Q "./runtime-architecture.en.md#node-q" "Node Q details"
 ```
 
 **Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
@@ -99,15 +82,6 @@ flowchart TD
     C2 -->|PASS + Human GO| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
 
-    click H2 "./runtime-architecture.en.md#node-h" "Node H details"
-    click J2 "./runtime-architecture.en.md#node-j" "Node J details"
-    click K2 "./runtime-architecture.en.md#node-k" "Node K details"
-    click M2 "./runtime-architecture.en.md#node-m" "Node M details"
-    click N2 "./runtime-architecture.en.md#node-n" "Node N details"
-    click O2 "./runtime-architecture.en.md#node-o" "Node O details"
-    click C2 "./runtime-architecture.en.md#node-c" "Node C details"
-    click D2 "./runtime-architecture.en.md#node-d" "Node D details"
-    click F2 "./runtime-architecture.en.md#node-f" "Node F details"
 ```
 
 ---
@@ -147,9 +121,9 @@ Symphony hooks used by Excellent-Nd:
 
 ## 4. Node-by-node implementation map
 
-<a id="node-a"></a>
+### Node A
 
-### Node A — ChatGPT / Human GO
+**ChatGPT / Human GO**
 
 Sources:
 
@@ -159,15 +133,15 @@ Sources:
 
 ChatGPT and the human define objective, constraints, acceptance criteria, dependencies, owner, execution target, and Human GO.
 
-<a id="node-b"></a>
+### Node B
 
-### Node B — GitHub Issue as the Durable Task
+**GitHub Issue as the Durable Task**
 
 The Issue stores the Execution Packet and durable evidence. The complete Issue body is passed to Codex as task context. Native Issue state, `workflow_status`, routing, and repository-native status are distinct surfaces.
 
-<a id="node-c"></a>
+### Node C
 
-### Node C — Repository integration / dispatch gates
+**Repository integration / dispatch gates**
 
 Sources:
 
@@ -178,9 +152,9 @@ Sources:
 
 Excellent-Nd does not hard-code repository-specific fields such as Status, Agent, or Human Approval. A consumer repository configures only the gates it uses in `.excellent-nd/repository.json`. Unavailable or ambiguous required data fails closed.
 
-<a id="node-d"></a>
+### Node D
 
-### Node D — Routing / execution target
+**Routing / execution target**
 
 Sources:
 
@@ -190,9 +164,9 @@ Sources:
 
 A routing label controls dispatchability; a target label identifies the execution host. `enabled: true` in target inventory means configured/assignable, not an online heartbeat.
 
-<a id="node-e"></a>
+### Node E
 
-### Node E — Execution host setup
+**Execution host setup**
 
 Sources:
 
@@ -204,9 +178,9 @@ Sources:
 
 Setup validates prerequisites, downloads the pinned Symphony asset, verifies its checksum, generates `WORKFLOW.md`, runs smoke checks, writes host/target identity, and may install/restart the systemd user service.
 
-<a id="node-f"></a>
+### Node F
 
-### Node F — Symphony polling
+**Symphony polling**
 
 Sources:
 
@@ -216,9 +190,9 @@ Sources:
 
 Symphony polls the tracker and filters candidates using configured active states and required labels. The polling implementation itself is upstream Symphony code.
 
-<a id="node-g"></a>
+### Node G
 
-### Node G — Per-Issue workspace
+**Per-Issue workspace**
 
 Symphony owns the per-Issue workspace lifecycle. Excellent-Nd expects Issue-correlated workspace naming and uses workspace identity during host-side safety checks.
 
@@ -227,9 +201,9 @@ Primary source entry points:
 - `config/WORKFLOW.md.tpl`
 - `runtime_observer.py::issue_from_workspace`
 
-<a id="node-h"></a>
+### Node H
 
-### Node H — before_run workspace safety
+**before_run workspace safety**
 
 Sources:
 
@@ -244,9 +218,9 @@ Sources:
 
 Dirty + drift is not auto-reset because uncommitted work might be valuable evidence.
 
-<a id="node-i"></a>
+### Node I
 
-### Node I — Symphony worker pickup
+**Symphony worker pickup**
 
 Sources:
 
@@ -255,9 +229,9 @@ Sources:
 
 Only the validated exact Symphony worker-start event is accepted as proof that work actually began.
 
-<a id="node-j"></a>
+### Node J
 
-### Node J — Formal GitHub lifecycle transition
+**Formal GitHub lifecycle transition**
 
 Sources:
 
@@ -275,21 +249,21 @@ Order:
 
 If an intermediate update fails, routing remains disabled. Worker pickup becomes `running` and maps to repository event `execution_started`.
 
-<a id="node-k"></a>
+### Node K
 
-### Node K — Codex App Server execution
+**Codex App Server execution**
 
 The workflow launches `codex app-server` under `workspace-write`. Codex performs repository investigation, changes, and verification without bypassing protected Git metadata.
 
-<a id="node-l"></a>
+### Node L
 
-### Node L — Changes / verification / Draft PR
+**Changes / verification / Draft PR**
 
 The expected output is reviewable evidence: changed files, verification, branch/commit, Draft PR, residual risk, and Workpad handoff. Code production alone is not treated as final completion.
 
-<a id="node-m"></a>
+### Node M
 
-### Node M — Structured lifecycle marker
+**Structured lifecycle marker**
 
 Marker file:
 
@@ -307,9 +281,9 @@ Sources:
 
 Allowed transitions are `blocked`, `review`, and `failed`.
 
-<a id="node-n"></a>
+### Node N
 
-### Node N — after_run formal transition
+**after_run formal transition**
 
 Sources:
 
@@ -318,9 +292,9 @@ Sources:
 
 The host applies the structured marker through the same formal `GitHub.transition` path. Idempotency receipts bind repository, Issue, run, attempt, and transition. Missing, corrupt, unknown, or invalid markers fail closed to blocked.
 
-<a id="node-o"></a>
+### Node O
 
-### Node O — Runtime interruption observation
+**Runtime interruption observation**
 
 Sources:
 
@@ -331,15 +305,15 @@ Sources:
 
 Examples include quota exhaustion, long rate limits, turn timeout, App Server startup failure, and abnormal agent exit.
 
-<a id="node-p"></a>
+### Node P
 
-### Node P — Human review / merge
+**Human review / merge**
 
 Review disables routing. Human review/merge remains a gate; the runtime does not interpret “Codex finished writing” as final acceptance.
 
-<a id="node-q"></a>
+### Node Q
 
-### Node Q — ChatGPT result ingestion
+**ChatGPT result ingestion**
 
 ChatGPT reads the Issue, PR, Workpad, and verification, then reintegrates the result into the original Plan. After accepted completion, the Issue can be closed and the next Task can proceed.
 
