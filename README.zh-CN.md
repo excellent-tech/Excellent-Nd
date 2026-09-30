@@ -86,6 +86,6 @@ Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excelle
 | Symphony | Issue-first 执行编排 |
 | Codex | 任务执行 worker |
 
-安装、运行、常见问题、卸载、标签和 `execution_target` 请参阅[使用指南](docs/operations.zh-CN.md)；版本编号请参阅[版本方针](skills/excellent-nd/references/version-policy.md)。
+安装、运行、常见问题、卸载、标签和 `execution_target` 请参阅[使用指南](docs/operations.zh-CN.md)；Issue、Symphony、observer、Codex与状态迁移的内部流程及源码索引请参阅[运行时架构指南](docs/runtime-architecture.zh-CN.md)；版本编号请参阅[版本方针](skills/excellent-nd/references/version-policy.md)。
 
 已验证runtime的安装入口是 `python3 scripts/setup.py --repo OWNER/REPOSITORY --prefix .excellent-nd --skill-confirmed`。启动、冒烟验证和停止步骤请参阅[使用指南](docs/operations.zh-CN.md)。
