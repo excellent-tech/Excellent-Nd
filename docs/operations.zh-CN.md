@@ -103,22 +103,22 @@ service启动时从同一user的`gh auth token`取得credential，只通过proce
 
 ### 11. 执行第一个单任务端到端验证
 
-- **操作**: 仅在当前user message同时含 `@excellent-nd` 与人工执行确认（Human GO）时执行普通Task。
+- **操作**: 仅在当前user message明确包含 `@excellent-nd` 时执行普通Task。该明确指定本身即视为人工执行指令，不再要求额外的 GO、Human GO 或批准语句。
 - **命令 / UI 操作**: 完成 `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人工审查`。
 - **确认结果**: 变更、验证和PR可追踪；进入review时同一decision移除routing label。
 - **OK**: 进入常规运行。
 - **NG**: 检查log、Workpad、diff、验证和PR；解决前不调度更多Task。
-只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在人工执行确认（Human GO）和 Issue 持久化后由人明确启动；这是有限例外，不是常规手动执行路径。
+只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在当前user message明确指定 `@excellent-nd` 且 Issue 持久化后由人明确启动；这是有限例外，不是常规手动执行路径。
 
 ## 运行 / 常见问题
 
 ### Q. 什么时候使用 `@excellent-nd`？
 
-A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写），同一决策上下文还必须有人工执行确认（Human GO）。Skill 自动选择或只满足一个 gate 时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
+A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写）。该 `@excellent-nd` 指定本身就是人工执行指令，不再要求额外的 GO、Human GO 或批准语句。Skill 自动选择不等同于明确执行指令；没有该指定时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
 
 ### Q. 可以只制定计划而不路由执行吗？
 
-A. 可以。可整理计划、任务拆分、负责人、估算负载和执行目标候选；在人工执行确认（Human GO）前不创建或派发 Issue。
+A. 可以。不明确指定 `@excellent-nd` 时，可整理计划、任务拆分、负责人、估算负载和执行目标候选，但不进行执行routing。
 
 ### Q. 常规流程是什么？
 
@@ -183,11 +183,11 @@ pgrep -af 'runtime_observer.py|symphony'
 
 observer在同一Symphony process tree中跟随observable event。只有带Issue context的使用额度耗尽、长时间rate limit、turn timeout、App Server启动失败或agent abnormal exit，才会把已清理秘密和非公开path的category、error、occurred_at、可取得的reset / retry与session / attempt、checkpoint可取得性、剩余工作和恢复条件写入Workpad。短周期retry交给Symphony，不创建comment。缺少Issue编号或准确error时标为无法取得，不作推测。
 
-中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。仅在当前user message再次包含 `@excellent-nd` 与人工执行确认（Human GO）后恢复。
+中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。仅在当前user message再次明确包含 `@excellent-nd` 后恢复；不要求额外批准语句。
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --explicit-mention --human-go
+  --reason "resume condition verified" --explicit-mention
 ```
 
 该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。优先同一Issue / thread，不进行无条件自动重新调度。
