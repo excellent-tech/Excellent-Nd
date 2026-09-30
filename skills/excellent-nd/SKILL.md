@@ -88,7 +88,7 @@ dispatch前に対象repositoryのrepository configとtarget台帳を確認し、
 
 ## 明示的な実行指示
 
-現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、`GO`、`Human GO`、承認文などの追加フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
+現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、別個の承認フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
 
 Task Issueには:
 
