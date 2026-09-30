@@ -10,6 +10,7 @@ from scripts.repository_config import default_config
 from scripts.runtime_observer import (
     GitHub,
     LogFollowError,
+    main,
     MAX_LOG_LINE_BYTES,
     MAX_LOG_POLL_BYTES,
     MARKER_FILENAME,
@@ -90,6 +91,35 @@ class RecordingGitHub(GitHub):
 class ObserverTest(unittest.TestCase):
     def setUp(self):
         self.config = default_config()
+
+    @patch("scripts.runtime_observer.GitHub")
+    @patch("scripts.runtime_observer.read_config", return_value=default_config())
+    def test_resume_explicit_mention_is_the_human_execution_instruction(self, _read_config, github_class):
+        github = github_class.return_value
+
+        result = main([
+            "resume",
+            "--repo", "owner/sample-app",
+            "--issue", "42",
+            "--reason", "operator requested resume",
+            "--explicit-mention",
+        ])
+
+        self.assertIsNone(result)
+        github.transition.assert_called_once()
+        args, kwargs = github.transition.call_args
+        self.assertEqual(args[0:2], (42, "scheduled"))
+        self.assertEqual(kwargs, {})
+
+    @patch("scripts.runtime_observer.read_config", return_value=default_config())
+    def test_resume_rejects_missing_explicit_mention(self, _read_config):
+        with self.assertRaises(SystemExit):
+            main([
+                "resume",
+                "--repo", "owner/sample-app",
+                "--issue", "42",
+                "--reason", "operator requested resume",
+            ])
 
     def test_non_transient_usage_limit_is_blocking(self):
         self.assertEqual(
