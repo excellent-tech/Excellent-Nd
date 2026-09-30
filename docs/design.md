@@ -12,14 +12,14 @@ Excellent-Nd は、人間に Issue 管理を強いるのではなく、ChatGPT �
 
 ## 目的
 
-Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を切り出し、人間の GO 後に担当・依存関係・おおよその負荷配分を反映して GitHub Issue 化し、Symphony / Codex で実行する。
+Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を切り出し、現在のuser messageで `@excellent-nd` が明示されたTaskを、担当・依存関係・おおよその負荷配分を反映して GitHub Issue 化し、Symphony / Codex で実行する。
 
 実行結果は GitHub に永続化し、人間が元の ChatGPT 会話で「結果を取り込んで」「状況を確認して」等と明示したときに、ChatGPT が各 Task の結果を取得して元 Plan へ再統合する。
 
 ## 設計原則
 
-1. ChatGPT を要求整理、Plan、担当分割、GO、結果確認、次の判断の主 UI とする。
-2. 人間による実行承認（Human GO） 前に実行しない。
+1. ChatGPT を要求整理、Plan、担当分割、明示的な実行指示、結果確認、次の判断の主 UI とする。
+2. 現在のuser messageで `@excellent-nd` が明示される前に通常Taskをdispatchしない。`@excellent-nd` の指定自体を人間の実行指示として扱う。
 3. 1 ChatGPT Chat は 1 つの計画・判断コンテキストとして扱い、そこから 1 件以上の Task に分岐できる。
 4. 実行コンテキストは Task 単位とし、原則として 1 Task = 1 Codex thread とする。
 5. 同じ Task の追加修正、test failure 修正、review 対応は同一 thread の継続を優先する。
@@ -30,7 +30,7 @@ Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を�
 10. Symphony と Codex が持つ scheduler / runner / workspace / retry / thread 管理を再実装しない。
 11. ChatGPT への自動 push は 1.0.x では行わず、人間の明示的な結果取り込みを基本とする。
 12. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
-13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、人間による実行承認（Human GO） とGitHub上の永続記録を維持した限定例外とする。
+13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、現在のuser messageでの `@excellent-nd` 明示とGitHub上の永続記録を維持した限定例外とする。
 
 ## 1.0.x の全体モデル
 
@@ -42,7 +42,7 @@ ChatGPT Chat
   - Plan
   - Task分割
   - 担当 / 負荷配分
-  - 人間による実行承認（Human GO）
+  - `@excellent-nd` による明示的な実行指示
   ↓
 GitHub Issues
   - Plan参照
@@ -126,11 +126,11 @@ ChatGPT は次を考慮して Task を割り当てる。
 
 3:7 等の比率は Task 件数の厳密比率ではなく、**おおよその総作業負荷**として解釈する。
 
-1.0.x では高度な最適化 scheduler は作らない。ChatGPT が合理的な割当案を作り、人間が GO することで確定する。
+1.0.x では高度な最適化 scheduler は作らない。ChatGPT が合理的な割当案を作り、人間が実行するuser messageで `@excellent-nd` を明示することで確定する。
 
-## 人間による実行承認（Human GO） と一括 Issue 作成
+## 明示的な実行指示と一括 Issue 作成
 
-人間による実行承認（Human GO） 後、ChatGPT は実行対象 Task ごとに GitHub Issue を作成または更新する。
+現在のuser messageで `@excellent-nd` が明示された後、ChatGPT は実行対象 Task ごとに GitHub Issue を作成または更新する。別個の承認フレーズは要求しない。
 
 Issue には最低限、次を相関可能な形で記録する。
 
@@ -150,11 +150,11 @@ Issue には最低限、次を相関可能な形で記録する。
 
 ## Bootstrap prerequisite
 
-通常の実行経路は 人間による実行承認（Human GO） → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
+通常の実行経路は user messageでの `@excellent-nd` 明示 → GitHub Issue → Symphony → Codex である。ただし最初のexecution hostにはSymphony runtimeが存在しないため、Symphony自身の導入を同じ経路から開始できない。
 
 この循環依存を避けるため、runtime readinessとsmoke verificationを確認するbootstrap Taskだけは次の限定規約を使う。
 
-1. ChatGPT上でPlanとbootstrap Taskを作り、通常と同じ人間による実行承認（Human GO）を得る。
+1. ChatGPT上でPlanとbootstrap Taskを作り、実行するuser messageで `@excellent-nd` を明示する。
 2. GitHub Issueにobjective、constraints、acceptance criteria、execution target、verification方法を永続化する。
 3. 利用可能なSymphony profileはまだ存在しないため、通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueを選択できない状態にする。
 4. 人間が対象host上のCodex CLI等から、そのIssueを作業記録として明示的に開始する。
@@ -268,7 +268,7 @@ ChatGPT は GitHub から Plan に紐づく各 Task / PR / verification を取�
 
 | 表示 | machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | 人間による実行承認（Human GO） 済みで実行可能 |
+| 実行予定 | `scheduled` | `@excellent-nd` の明示的な実行指示を受けて実行可能 |
 | 処理中 | `running` | Codex が処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証後のレビュー待ち |
@@ -313,7 +313,7 @@ usage limit を検出した場合は Task を `blocked` / 保留として Issue 
 
 共通の ChatGPT 操作規約は `skills/excellent-nd/` で管理する。
 
-Skill は新しい通信 IF を提供するものではなく、Plan 分割、人間による実行承認（Human GO）、Issue 作成、Task control / correlation metadata、結果取り込み、人間判断ゲート（Human Gate）、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
+Skill は新しい通信 IF を提供するものではなく、Plan 分割、`@excellent-nd` による明示的な実行指示、Issue 作成、Task control / correlation metadata、結果取り込み、人間判断ゲート（Human Gate）、host migration 等を ChatGPT が一貫して実行するための再利用可能な workflow である。
 
 組織・プロジェクト固有の host 名、credential、非公開運用ルールは public Skill に含めない。
 
