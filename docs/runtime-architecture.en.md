@@ -61,6 +61,24 @@ flowchart TD
     J -->|review| P["P. Human Review / Merge"]
     P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
 
+
+    click A href "#node-a" "Node A details" _self
+    click B href "#node-b" "Node B details" _self
+    click C href "#node-c" "Node C details" _self
+    click D href "#node-d" "Node D details" _self
+    click E href "#node-e" "Node E details" _self
+    click F href "#node-f" "Node F details" _self
+    click G href "#node-g" "Node G details" _self
+    click H href "#node-h" "Node H details" _self
+    click I href "#node-i" "Node I details" _self
+    click J href "#node-j" "Node J details" _self
+    click K href "#node-k" "Node K details" _self
+    click L href "#node-l" "Node L details" _self
+    click M href "#node-m" "Node M details" _self
+    click N href "#node-n" "Node N details" _self
+    click O href "#node-o" "Node O details" _self
+    click P href "#node-p" "Node P details" _self
+    click Q href "#node-q" "Node Q details" _self
 ```
 
 **Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
@@ -82,6 +100,16 @@ flowchart TD
     C2 -->|PASS + Human GO| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
 
+
+    click H2 href "#node-h" "Node H details" _self
+    click J2 href "#node-j" "Node J details" _self
+    click K2 href "#node-k" "Node K details" _self
+    click M2 href "#node-m" "Node M details" _self
+    click N2 href "#node-n" "Node N details" _self
+    click O2 href "#node-o" "Node O details" _self
+    click C2 href "#node-c" "Node C details" _self
+    click D2 href "#node-d" "Node D details" _self
+    click F2 href "#node-f" "Node F details" _self
 ```
 
 ---
