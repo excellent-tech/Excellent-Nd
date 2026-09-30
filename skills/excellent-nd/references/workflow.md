@@ -17,7 +17,7 @@ Symphony実行制御の正本は、GitHub native state、adapterのdispatchabili
 
 ## 明示的dispatch gate
 
-通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、追加の `GO` / `Human GO` / 承認文を要求しない。Skillの自動選択はgateを満たさない。明示指定がなければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
+通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、別個の承認フレーズを要求しない。Skillの自動選択はgateを満たさない。明示指定がなければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
 
 `review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。再開時は現在のuser messageで `@excellent-nd` の明示指定を再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
