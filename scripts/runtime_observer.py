@@ -847,6 +847,9 @@ def main(argv=None):
             return 75
         return 0
 
+    if args.command == "resume" and not args.explicit_mention:
+        parser.error("resume requires --explicit-mention")
+
     config = read_config(args.repository_config)
     github = GitHub(args.repo, config)
     if args.command == "apply-marker":
@@ -859,8 +862,6 @@ def main(argv=None):
             receipt_dir,
         ) in ("applied", "duplicate", "blocked") else 1
     if args.command == "resume":
-        if not args.explicit_mention:
-            parser.error("resume requires --explicit-mention")
         github.transition(
             args.issue,
             "scheduled",
