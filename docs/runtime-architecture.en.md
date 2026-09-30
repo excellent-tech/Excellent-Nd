@@ -35,28 +35,82 @@ Excellent-Nd is conversation-first for humans and Issue-first internally. The Is
 
 ## 2. End-to-end flow
 
+### 2.1 Normal flow mapped to Nodes A-Q
+
+Each block displays its **A-Q** Node identifier. When Mermaid links are enabled by the renderer, clicking a block jumps to the matching detail section. If diagram links are unavailable, use the Node index below the diagram.
+
 ```mermaid
 flowchart TD
-    A[Human + ChatGPT<br/>Plan / Human GO] --> B[GitHub Issue<br/>Execution Packet]
-    B --> C[Repository config / dispatch gates]
-    C -->|PASS| D[Routing + target labels]
-    D --> E[Symphony polling]
-    E --> F[Per-Issue workspace]
-    F --> G[before_run safety hook]
-    G --> H[Symphony worker pickup]
-    H --> I[observer: execution_started]
-    I --> J[GitHub.transition running]
-    J --> K[Codex App Server]
-    K --> L[Change / verification / Draft PR]
-    L --> M[Structured lifecycle marker]
-    M --> N[after_run hook]
-    N --> O[GitHub.transition]
-    O -->|review| P[Human review / merge]
-    P --> Q[ChatGPT result ingestion]
-    Q --> R[Issue close / next Task]
+    A["A. Human + ChatGPT<br/>Plan / Human GO"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    B --> C["C. Repository integration<br/>dispatch gates"]
+    C -->|PASS| D["D. Routing / execution target"]
+    E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
+    D --> F
+    F --> G["G. Per-Issue workspace"]
+    G --> H["H. before_run<br/>workspace safety"]
+    H -->|safe| I["I. Symphony worker pickup"]
+    I --> J["J. GitHub.transition<br/>formal state synchronization"]
+    J -->|running| K["K. Codex App Server"]
+    K --> L["L. Change / Verification / Draft PR"]
+    L --> M["M. Structured lifecycle marker"]
+    M --> N["N. after_run<br/>formal transition"]
+    N --> J
+    K -. runtime signal .-> O["O. Runtime interruption observer"]
+    O --> J
+    H -. safety blocker .-> J
+    J -->|review| P["P. Human Review / Merge"]
+    P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
+
+    click A "./runtime-architecture.en.md#node-a" "Node A details"
+    click B "./runtime-architecture.en.md#node-b" "Node B details"
+    click C "./runtime-architecture.en.md#node-c" "Node C details"
+    click D "./runtime-architecture.en.md#node-d" "Node D details"
+    click E "./runtime-architecture.en.md#node-e" "Node E details"
+    click F "./runtime-architecture.en.md#node-f" "Node F details"
+    click G "./runtime-architecture.en.md#node-g" "Node G details"
+    click H "./runtime-architecture.en.md#node-h" "Node H details"
+    click I "./runtime-architecture.en.md#node-i" "Node I details"
+    click J "./runtime-architecture.en.md#node-j" "Node J details"
+    click K "./runtime-architecture.en.md#node-k" "Node K details"
+    click L "./runtime-architecture.en.md#node-l" "Node L details"
+    click M "./runtime-architecture.en.md#node-m" "Node M details"
+    click N "./runtime-architecture.en.md#node-n" "Node N details"
+    click O "./runtime-architecture.en.md#node-o" "Node O details"
+    click P "./runtime-architecture.en.md#node-p" "Node P details"
+    click Q "./runtime-architecture.en.md#node-q" "Node Q details"
 ```
 
-Blocked execution follows the same state path: a pre-run safety failure, task-level marker, or runtime interruption is converted into a formal `blocked` transition, routing is disabled, evidence is stored, and resume requires gates to pass again.
+**Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
+
+Node E is an execution-host prerequisite rather than a per-Task serial step. Node J is the state-synchronization hub: worker start, pre-run blocker, after-run marker, and runtime interruption all converge on the same formal transition path.
+
+### 2.2 Blocked / resume flow
+
+```mermaid
+flowchart TD
+    H2["H. before_run safety"] -->|dirty + base drift| J2["J. GitHub.transition<br/>blocked"]
+    K2["K. Codex App Server"] --> M2["M. structured marker<br/>blocked / review / failed"]
+    M2 --> N2["N. after_run"]
+    N2 --> J2
+    O2["O. runtime interruption"] --> J2
+    J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
+    X --> Y["Human / external condition resolution"]
+    Y --> C2["C. dispatch gates re-check"]
+    C2 -->|PASS + Human GO| D2["D. routing restored"]
+    D2 --> F2["F. Symphony polling"]
+
+    click H2 "./runtime-architecture.en.md#node-h" "Node H details"
+    click J2 "./runtime-architecture.en.md#node-j" "Node J details"
+    click K2 "./runtime-architecture.en.md#node-k" "Node K details"
+    click M2 "./runtime-architecture.en.md#node-m" "Node M details"
+    click N2 "./runtime-architecture.en.md#node-n" "Node N details"
+    click O2 "./runtime-architecture.en.md#node-o" "Node O details"
+    click C2 "./runtime-architecture.en.md#node-c" "Node C details"
+    click D2 "./runtime-architecture.en.md#node-d" "Node D details"
+    click F2 "./runtime-architecture.en.md#node-f" "Node F details"
+```
+
+---
 
 ---
 
@@ -93,7 +147,9 @@ Symphony hooks used by Excellent-Nd:
 
 ## 4. Node-by-node implementation map
 
-### ChatGPT / Human GO
+<a id="node-a"></a>
+
+### Node A — ChatGPT / Human GO
 
 Sources:
 
@@ -101,9 +157,17 @@ Sources:
 - `skills/excellent-nd/references/task-schema.md`
 - `skills/excellent-nd/references/workflow.md`
 
-Output: a GitHub Issue whose body is the Execution Packet.
+ChatGPT and the human define objective, constraints, acceptance criteria, dependencies, owner, execution target, and Human GO.
 
-### Repository integration and gates
+<a id="node-b"></a>
+
+### Node B — GitHub Issue as the Durable Task
+
+The Issue stores the Execution Packet and durable evidence. The complete Issue body is passed to Codex as task context. Native Issue state, `workflow_status`, routing, and repository-native status are distinct surfaces.
+
+<a id="node-c"></a>
+
+### Node C — Repository integration / dispatch gates
 
 Sources:
 
@@ -112,11 +176,11 @@ Sources:
 - `scripts/repository_adapter.py::evaluate_gates`
 - `scripts/repository_adapter.py::preflight`
 
-Excellent-Nd does not hard-code repository-specific fields such as Status, Agent, or Human Approval. A consumer repository configures only the gates it uses in `.excellent-nd/repository.json`.
+Excellent-Nd does not hard-code repository-specific fields such as Status, Agent, or Human Approval. A consumer repository configures only the gates it uses in `.excellent-nd/repository.json`. Unavailable or ambiguous required data fails closed.
 
-Unavailable or ambiguous required data fails closed.
+<a id="node-d"></a>
 
-### Routing and execution target
+### Node D — Routing / execution target
 
 Sources:
 
@@ -124,9 +188,11 @@ Sources:
 - `.excellent-nd/targets/*.json`
 - `config/WORKFLOW.md.tpl`
 
-A routing label controls dispatchability; a target label identifies the host. `enabled: true` in target inventory means configured/assignable, not an online heartbeat.
+A routing label controls dispatchability; a target label identifies the execution host. `enabled: true` in target inventory means configured/assignable, not an online heartbeat.
 
-### Setup and service
+<a id="node-e"></a>
+
+### Node E — Execution host setup
 
 Sources:
 
@@ -138,7 +204,9 @@ Sources:
 
 Setup validates prerequisites, downloads the pinned Symphony asset, verifies its checksum, generates `WORKFLOW.md`, runs smoke checks, writes host/target identity, and may install/restart the systemd user service.
 
-### Symphony polling and workspace
+<a id="node-f"></a>
+
+### Node F — Symphony polling
 
 Sources:
 
@@ -146,16 +214,27 @@ Sources:
 - generated `.excellent-nd/WORKFLOW.md`
 - upstream Symphony
 
-The polling implementation itself is upstream Symphony code, not Excellent-Nd Python code.
+Symphony polls the tracker and filters candidates using configured active states and required labels. The polling implementation itself is upstream Symphony code.
 
-### before_run workspace safety
+<a id="node-g"></a>
+
+### Node G — Per-Issue workspace
+
+Symphony owns the per-Issue workspace lifecycle. Excellent-Nd expects Issue-correlated workspace naming and uses workspace identity during host-side safety checks.
+
+Primary source entry points:
+
+- `config/WORKFLOW.md.tpl`
+- `runtime_observer.py::issue_from_workspace`
+
+<a id="node-h"></a>
+
+### Node H — before_run workspace safety
 
 Sources:
 
 - `runtime_observer.py::prepare_workspace`
 - `runtime_observer.py::workspace_decision`
-
-Behavior:
 
 | Workspace | Base relation | Result |
 | --- | --- | --- |
@@ -165,17 +244,20 @@ Behavior:
 
 Dirty + drift is not auto-reset because uncommitted work might be valuable evidence.
 
-### Worker pickup -> running
+<a id="node-i"></a>
+
+### Node I — Symphony worker pickup
 
 Sources:
 
 - `runtime_observer.py::worker_started_issue`
 - `runtime_observer.py::run_observer`
-- `runtime_observer.py::GitHub.transition`
 
-Only the validated exact Symphony worker-start event is accepted. A matching event becomes `running`, which maps to the repository event `execution_started`.
+Only the validated exact Symphony worker-start event is accepted as proof that work actually began.
 
-### Formal lifecycle transition
+<a id="node-j"></a>
+
+### Node J — Formal GitHub lifecycle transition
 
 Sources:
 
@@ -189,15 +271,25 @@ Order:
 2. update Issue body workflow status
 3. update repository-native status when configured
 4. write Workpad evidence
-5. restore routing only when the final state needs it and all prior updates succeeded
+5. restore routing only when the final state requires it and all prior updates succeeded
 
-If an intermediate update fails, routing remains disabled.
+If an intermediate update fails, routing remains disabled. Worker pickup becomes `running` and maps to repository event `execution_started`.
 
-### Codex execution and publication
+<a id="node-k"></a>
 
-The workflow launches `codex app-server` under `workspace-write`. Codex should not bypass protected Git metadata. Repository publication uses the host-side `github_api` path described in `WORKFLOW.md.tpl`.
+### Node K — Codex App Server execution
 
-### Structured lifecycle marker and after_run
+The workflow launches `codex app-server` under `workspace-write`. Codex performs repository investigation, changes, and verification without bypassing protected Git metadata.
+
+<a id="node-l"></a>
+
+### Node L — Changes / verification / Draft PR
+
+The expected output is reviewable evidence: changed files, verification, branch/commit, Draft PR, residual risk, and Workpad handoff. Code production alone is not treated as final completion.
+
+<a id="node-m"></a>
+
+### Node M — Structured lifecycle marker
 
 Marker file:
 
@@ -210,13 +302,25 @@ Schema:
 Sources:
 
 - `validate_transition_marker`
-- `apply_transition_marker`
 - `transition_identity`
 - `validated_receipt`
 
-Allowed transitions are `blocked`, `review`, and `failed`. Receipts bind repository, Issue, run, attempt, and transition for idempotency. Missing, corrupt, unknown, or invalid markers fail closed to blocked.
+Allowed transitions are `blocked`, `review`, and `failed`.
 
-### Runtime interruptions
+<a id="node-n"></a>
+
+### Node N — after_run formal transition
+
+Sources:
+
+- `WORKFLOW.md.tpl` `after_run`
+- `runtime_observer.py::apply_transition_marker`
+
+The host applies the structured marker through the same formal `GitHub.transition` path. Idempotency receipts bind repository, Issue, run, attempt, and transition. Missing, corrupt, unknown, or invalid markers fail closed to blocked.
+
+<a id="node-o"></a>
+
+### Node O — Runtime interruption observation
 
 Sources:
 
@@ -227,9 +331,17 @@ Sources:
 
 Examples include quota exhaustion, long rate limits, turn timeout, App Server startup failure, and abnormal agent exit.
 
-### Human review and result ingestion
+<a id="node-p"></a>
 
-Review disables routing. Human review/merge remains a gate. ChatGPT later reads the Issue, PR, and verification and reintegrates the result into the original Plan.
+### Node P — Human review / merge
+
+Review disables routing. Human review/merge remains a gate; the runtime does not interpret “Codex finished writing” as final acceptance.
+
+<a id="node-q"></a>
+
+### Node Q — ChatGPT result ingestion
+
+ChatGPT reads the Issue, PR, Workpad, and verification, then reintegrates the result into the original Plan. After accepted completion, the Issue can be closed and the next Task can proceed.
 
 ---
 
