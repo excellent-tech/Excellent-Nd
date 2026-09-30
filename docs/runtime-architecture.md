@@ -45,52 +45,86 @@ Excellent-Ndの人間向けUXはChatGPT中心です。Issueは、実行するTas
 
 ## 2. 全体処理フロー
 
-### 2.1 通常成功パス
+### 2.1 Node A～Q対応の通常フロー
+
+図の各ブロック先頭に **A～Q** を表示し、本文の同じNodeへ対応させています。GitHub上でMermaid node linkが有効な場合はブロックをクリックすると詳細へ移動できます。利用環境で図内リンクが無効な場合は、図直下のNode indexを使用してください。
 
 ```mermaid
 flowchart TD
-    A[Human + ChatGPT<br/>Plan / Task / Human GO] --> B[GitHub Issue<br/>Execution Packet]
-    B --> C[Repository config / dispatch gates]
-    C -->|PASS| D[symphony-ready + target label]
-    D --> E[Symphony polling]
-    E --> F[Per-Issue workspace]
-    F --> G[before_run hook<br/>Excellent-Nd observer]
-    G -->|clean / safe| H[Symphony worker pickup]
-    H --> I[observer: execution_started]
-    I --> J[GitHub.transition<br/>running]
-    J --> K[Codex App Server]
-    K --> L[Change / Verification / Draft PR]
-    L --> M[Structured lifecycle marker]
-    M --> N[after_run hook]
-    N --> O[GitHub.transition]
-    O -->|review| P[Human Review]
-    P --> Q[Human merge]
-    Q --> R[ChatGPT result ingestion]
-    R --> S[Issue close / next Task]
+    A["A. Human + ChatGPT<br/>Plan / Task / Human GO"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    B --> C["C. Repository integration<br/>dispatch gates"]
+    C -->|PASS| D["D. Routing / execution target"]
+    E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
+    D --> F
+    F --> G["G. Per-Issue workspace"]
+    G --> H["H. before_run<br/>workspace safety"]
+    H -->|safe| I["I. Symphony worker pickup"]
+    I --> J["J. GitHub.transition<br/>formal state synchronization"]
+    J -->|running| K["K. Codex App Server"]
+    K --> L["L. Change / Verification / Draft PR"]
+    L --> M["M. Structured lifecycle marker"]
+    M --> N["N. after_run<br/>formal transition"]
+    N --> J
+    K -. runtime signal .-> O["O. Runtime interruption observer"]
+    O --> J
+    H -. safety blocker .-> J
+    J -->|review| P["P. Human Review / Merge"]
+    P --> Q["Q. ChatGPT result ingestion<br/>Issue close / next Task"]
+
+    click A "./runtime-architecture.md#node-a" "Node A details"
+    click B "./runtime-architecture.md#node-b" "Node B details"
+    click C "./runtime-architecture.md#node-c" "Node C details"
+    click D "./runtime-architecture.md#node-d" "Node D details"
+    click E "./runtime-architecture.md#node-e" "Node E details"
+    click F "./runtime-architecture.md#node-f" "Node F details"
+    click G "./runtime-architecture.md#node-g" "Node G details"
+    click H "./runtime-architecture.md#node-h" "Node H details"
+    click I "./runtime-architecture.md#node-i" "Node I details"
+    click J "./runtime-architecture.md#node-j" "Node J details"
+    click K "./runtime-architecture.md#node-k" "Node K details"
+    click L "./runtime-architecture.md#node-l" "Node L details"
+    click M "./runtime-architecture.md#node-m" "Node M details"
+    click N "./runtime-architecture.md#node-n" "Node N details"
+    click O "./runtime-architecture.md#node-o" "Node O details"
+    click P "./runtime-architecture.md#node-p" "Node P details"
+    click Q "./runtime-architecture.md#node-q" "Node Q details"
 ```
+
+**Node index:** [A](#node-a) → [B](#node-b) → [C](#node-c) → [D](#node-d) → [E](#node-e) → [F](#node-f) → [G](#node-g) → [H](#node-h) → [I](#node-i) → [J](#node-j) → [K](#node-k) → [L](#node-l) → [M](#node-m) → [N](#node-n) → [O](#node-o) → [P](#node-p) → [Q](#node-q)
+
+**読み方:** EはTaskごとの直列処理ではなく、F以降を動かすexecution hostの前提です。Jは状態同期のハブで、worker start、before_run blocker、after_run marker、runtime interruptionのすべてが同じ正式transitionへ集約されます。
 
 重要なのは、**Symphonyが直接Project Statusを決めるわけではない**ことです。Symphonyはworker lifecycleを編成し、Excellent-Nd observerがその観測結果をrepository固有の状態へmappingします。
 
-### 2.2 Blockedパス
+### 2.2 Blocked / Resumeパス
+
+Blocked時も、主フローのNode記号をそのまま使います。
 
 ```mermaid
 flowchart TD
-    A[before_run / Codex / runtime] --> B{続行不能?}
-    B -->|dirty + base drift| C[before_run abort]
-    B -->|task-level blocker| D[structured marker]
-    B -->|runtime interruption| E[observer log classification]
-    C --> F[GitHub.transition blocked]
-    D --> F
-    E --> F
-    F --> G[Routing OFF]
-    G --> H[workflow_status = blocked]
-    H --> I[repository-native Status更新]
-    I --> J[Workpad evidence]
-    J --> K[Human / external condition待ち]
-    K --> L[Human GO付きresume]
-    L --> M[dispatch gate再確認]
-    M -->|PASS| N[scheduled + routing復元]
+    H2["H. before_run safety"] -->|dirty + base drift| J2["J. GitHub.transition<br/>blocked"]
+    K2["K. Codex App Server"] --> M2["M. structured marker<br/>blocked / review / failed"]
+    M2 --> N2["N. after_run"]
+    N2 --> J2
+    O2["O. runtime interruption"] --> J2
+    J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
+    X --> Y["Human / external condition resolution"]
+    Y --> C2["C. dispatch gates re-check"]
+    C2 -->|PASS + Human GO| D2["D. routing restored"]
+    D2 --> F2["F. Symphony polling"]
+
+    click H2 "./runtime-architecture.md#node-h" "Node H details"
+    click J2 "./runtime-architecture.md#node-j" "Node J details"
+    click K2 "./runtime-architecture.md#node-k" "Node K details"
+    click M2 "./runtime-architecture.md#node-m" "Node M details"
+    click N2 "./runtime-architecture.md#node-n" "Node N details"
+    click O2 "./runtime-architecture.md#node-o" "Node O details"
+    click C2 "./runtime-architecture.md#node-c" "Node C details"
+    click D2 "./runtime-architecture.md#node-d" "Node D details"
+    click F2 "./runtime-architecture.md#node-f" "Node F details"
 ```
+
+---
 
 ---
 
@@ -132,7 +166,7 @@ Excellent-Ndは特に `before_run` と `after_run` を使って、workspace safe
 
 ## 4. 各ノードの処理詳細とソースコード
 
-### Node A — ChatGPTでPlan / Human GO
+<a id="node-a"></a>\n\n### Node A — ChatGPTでPlan / Human GO
 
 **何をするか**
 
@@ -150,7 +184,7 @@ GitHub Issue body。これはCodexに渡るExecution Packetでもあります。
 
 ---
 
-### Node B — GitHub IssueをDurable Taskとして保存
+<a id="node-b"></a>\n\n### Node B — GitHub IssueをDurable Taskとして保存
 
 **何を保存するか**
 
@@ -168,7 +202,7 @@ Issueのnative state（open/closed）、`workflow_status`、routing label、Proj
 
 ---
 
-### Node C — Repository integration / dispatch gate
+<a id="node-c"></a>\n\n### Node C — Repository integration / dispatch gate
 
 **何をするか**
 
@@ -202,7 +236,7 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-### Node D — routing / execution target
+<a id="node-d"></a>\n\n### Node D — routing / execution target
 
 **何をするか**
 
@@ -221,7 +255,7 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-### Node E — setupが実行hostを構成
+<a id="node-e"></a>\n\n### Node E — setupが実行hostを構成
 
 **何をするか**
 
@@ -247,7 +281,7 @@ Excellent-Nd Coreは、`Status`、`Agent`、`Human Approval`のような特定Fi
 
 ---
 
-### Node F — SymphonyがIssueをpoll
+<a id="node-f"></a>\n\n### Node F — SymphonyがIssueをpoll
 
 **何をするか**
 
@@ -269,7 +303,7 @@ SymphonyのpollingそのものはExcellent-Nd Python codeではありません�
 
 ---
 
-### Node G — Issueごとのworkspaceを準備
+<a id="node-g"></a>\n\n### Node G — Issueごとのworkspaceを準備
 
 SymphonyはIssueごとのworkspaceを管理します。Excellent-Ndではworkspace名からIssue番号を復元できるよう、`GH-<number>` を前提にする処理があります。
 
@@ -281,7 +315,7 @@ SymphonyはIssueごとのworkspaceを管理します。Excellent-Ndではworkspa
 
 ---
 
-### Node H — before_runでworkspace safetyを確認
+<a id="node-h"></a>\n\n### Node H — before_runでworkspace safetyを確認
 
 **何をするか**
 
@@ -305,7 +339,7 @@ dirty + base driftを自動resetしない理由は、未commit成果を消失さ
 
 ---
 
-### Node I — Symphonyがworkerをpickup
+<a id="node-i"></a>\n\n### Node I — Symphonyがworkerをpickup
 
 Symphonyが実際にworker attemptを開始すると、pinned runtimeが確実なstart eventをlogへ出します。
 
@@ -329,7 +363,7 @@ Symphony worker start
 
 ---
 
-### Node J — GitHub.transitionが状態を一元更新
+<a id="node-j"></a>\n\n### Node J — GitHub.transitionが状態を一元更新
 
 PR #23以降、lifecycle state updateの中心は `GitHub.transition` です。
 
@@ -355,7 +389,7 @@ Project Statusだけ失敗し、routingだけ残ると、状態が壊れたTask�
 
 ---
 
-### Node K — Codex App ServerがTaskを実行
+<a id="node-k"></a>\n\n### Node K — Codex App ServerがTaskを実行
 
 SymphonyがIssue bodyをpromptへrenderし、Codex App Serverをworkspace内で起動します。
 
@@ -374,7 +408,7 @@ Codex sandboxから `.git` metadataを無理に書き換えない方針です。
 
 ---
 
-### Node L — Codexが成果物・検証・PRを作る
+<a id="node-l"></a>\n\n### Node L — Codexが成果物・検証・PRを作る
 
 通常の成果には次が含まれます。
 
@@ -389,7 +423,7 @@ Taskが完了したように見えても、人間のreview gateを飛ばしま�
 
 ---
 
-### Node M — Codexがstructured lifecycle markerを書く
+<a id="node-m"></a>\n\n### Node M — Codexがstructured lifecycle markerを書く
 
 Codex run終了時の状態は、free-form commentだけではなくstructured markerでhostへ渡します。
 
@@ -418,7 +452,7 @@ Codex run終了時の状態は、free-form commentだけではなくstructured m
 
 ---
 
-### Node N — after_runで正式transitionを適用
+<a id="node-n"></a>\n\n### Node N — after_runで正式transitionを適用
 
 `after_run` hookはmarkerを読み、同じ `GitHub.transition` へ流します。
 
@@ -438,7 +472,7 @@ markerが欠損、破損、未知transition、receipt不正の場合は、推測
 
 ---
 
-### Node O — runtime interruptionの観測
+<a id="node-o"></a>\n\n### Node O — runtime interruptionの観測
 
 structured markerとは別に、observerはSymphony process treeのruntime logも監視します。
 
@@ -461,7 +495,7 @@ structured markerとは別に、observerはSymphony process treeのruntime log�
 
 ---
 
-### Node P — Human Review / Merge
+<a id="node-p"></a>\n\n### Node P — Human Review / Merge
 
 reviewへ遷移するとroutingはOFFになります。人間がPRをreviewし、mergeします。
 
@@ -469,7 +503,7 @@ Excellent-Nd自身は「Codeを書いた = 完了」とは扱いません。PR�
 
 ---
 
-### Node Q — ChatGPT result ingestion
+<a id="node-q"></a>\n\n### Node Q — ChatGPT result ingestion
 
 人間がChatGPTで結果取得を指示すると、SkillはIssue / PR / verificationを読み、元Planへ統合します。
 
