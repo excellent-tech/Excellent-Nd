@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import socket
+from pathlib import Path
 
 TARGET_LABEL_PREFIX = "nd-target:"
 MAX_TARGET_ID_LENGTH = 40
@@ -40,9 +41,21 @@ def render_workflow(
     execution_target: str,
     routing_label_name: str = "symphony-ready",
     target_prefix: str = TARGET_LABEL_PREFIX,
+    python: Path | None = None,
+    observer: Path | None = None,
+    repository_config: Path | None = None,
 ) -> str:
-    return (
+    rendered = (
         template.replace("__REPOSITORY__", repository)
         .replace("__ROUTING_LABEL__", routing_label_name)
         .replace("__EXECUTION_TARGET_LABEL__", routing_label(execution_target, target_prefix))
     )
+    replacements = {
+        "__PYTHON__": python,
+        "__OBSERVER__": observer,
+        "__REPOSITORY_CONFIG__": repository_config,
+    }
+    for placeholder, value in replacements.items():
+        if value is not None:
+            rendered = rendered.replace(placeholder, str(value.resolve()))
+    return rendered

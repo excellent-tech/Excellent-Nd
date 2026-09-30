@@ -26,6 +26,9 @@ class ExecutionTargetTest(unittest.TestCase):
     def test_render_workflow_binds_custom_routing(self):
         template = (
             'repo: "__REPOSITORY__"\n'
+            'python: "__PYTHON__"\n'
+            'observer: "__OBSERVER__"\n'
+            'config: "__REPOSITORY_CONFIG__"\n'
             "required_labels:\n"
             "  - __ROUTING_LABEL__\n"
             "  - __EXECUTION_TARGET_LABEL__\n"
@@ -34,12 +37,19 @@ class ExecutionTargetTest(unittest.TestCase):
             template, "owner/repo", "worker-a",
             routing_label_name="ready-for-ai",
             target_prefix="ai-host:",
+            python=Path("/usr/bin/python3"),
+            observer=Path("/opt/excellent-nd/runtime_observer.py"),
+            repository_config=Path("/srv/sample-app/.excellent-nd/repository.json"),
         )
         self.assertIn('repo: "owner/repo"', rendered)
         self.assertIn("  - ready-for-ai", rendered)
         self.assertIn("  - ai-host:worker-a", rendered)
+        self.assertIn(f'python: "{Path("/usr/bin/python3").resolve()}"', rendered)
+        self.assertIn('observer: "/opt/excellent-nd/runtime_observer.py"', rendered)
+        self.assertIn('config: "/srv/sample-app/.excellent-nd/repository.json"', rendered)
         self.assertNotIn("__ROUTING_LABEL__", rendered)
         self.assertNotIn("__EXECUTION_TARGET_LABEL__", rendered)
+        self.assertNotIn("__OBSERVER__", rendered)
 
 
 if __name__ == "__main__":

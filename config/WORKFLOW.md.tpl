@@ -19,12 +19,14 @@ hooks:
   after_create: |
     gh repo clone __REPOSITORY__ .
   before_run: |
-    if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
-      exit 0
-    fi
-    default_branch="$(gh repo view __REPOSITORY__ --json defaultBranchRef --jq '.defaultBranchRef.name')"
-    git fetch --prune origin "$default_branch"
-    git reset --hard "origin/$default_branch"
+    "__PYTHON__" "__OBSERVER__" before-run \
+      --repo __REPOSITORY__ \
+      --workspace "$PWD"
+  after_run: |
+    "__PYTHON__" "__OBSERVER__" apply-marker \
+      --repo __REPOSITORY__ \
+      --workspace "$PWD" \
+      --repository-config "__REPOSITORY_CONFIG__"
 agent:
   max_concurrent_agents: 1
   max_turns: 20
@@ -45,9 +47,17 @@ Git publication policy for `workspace-write`:
 
 - Codex `workspace-write` protects Git metadata under `.git`. Do not treat that protection as a repository permission failure, and do not use `danger-full-access` to bypass it.
 - Do not run Git commands that mutate Git metadata from inside the Codex sandbox, including `git fetch`, `git pull`, `git checkout`, `git switch`, `git branch`, `git commit`, `git push`, `git merge`, or `git rebase`.
-- The Symphony `before_run` hook refreshes a clean workspace to the current remote default branch outside the Codex sandbox. If the workspace already contains changes, the hook preserves them instead of resetting them.
+- The Symphony `before_run` hook refreshes a clean workspace to the current remote default branch outside the Codex sandbox. A dirty workspace on an older base is stopped before Codex starts; preserve it with provenance and hashes in host-local recovery storage before repair.
 - Use read-only Git commands such as `git status`, `git diff`, `git diff --check`, and `git rev-parse HEAD` for inspection and verification.
 - Use Symphony's host-side `github_api` tool for GitHub writes. Before publishing, GET the repository/default branch ref and require its remote head SHA to equal the local `git rev-parse HEAD` base SHA. If they differ, stop and record a base-drift blocker instead of publishing.
 - Publish only approved-scope changes. Use the Git Data REST API through `github_api` to create blobs for changed files, create a tree based on the verified base tree, create a commit whose parent is the verified base SHA, and create a task branch ref that points at that commit. Represent deletions explicitly in the tree. Use base64 blob encoding for binary files.
 - Create a Draft PR through `github_api` from the task branch to the verified default branch, then write the branch, commit SHA, verification result, Draft PR URL, changed files, and residual risk to the Issue Workpad.
 - Never force-update or reuse an unrelated existing branch. If the intended task branch already exists and safe ownership/ancestry cannot be proven, stop and record the conflict.
+
+Lifecycle handoff policy:
+
+- Before the worker run ends, write `.excellent-nd/runtime-transition.json` as a structured marker. Missing, malformed, or unknown markers fail closed to `blocked`.
+- Use schema `excellent-nd/runtime-transition@v1` with non-empty string fields `run_id`, `attempt`, `transition`, and `reason`. `transition` must be `blocked`, `review`, or `failed`; `blocked` may also use `block_kind` with `external` or `decision`.
+- Example: `{"schema":"excellent-nd/runtime-transition@v1","run_id":"stable-run-id","attempt":"1","transition":"review","reason":"verification passed"}`.
+- Keep `run_id` and `attempt` stable when retrying the same transition. The host-side `after_run` hook applies an idempotency receipt and routes the marker through the runtime's formal lifecycle transition.
+- Do not rely on a free-form Issue comment as the state transition. Comments and Workpads are evidence produced by the formal transition.
