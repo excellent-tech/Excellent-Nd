@@ -6,9 +6,9 @@
 
 中心フロー:
 
-> ChatGPT で Plan 作成 → Task 分割・担当配分 → 人間による実行承認（Human GO） → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
+> ChatGPT で Plan 作成 → Task 分割・担当配分 → 実行するuser messageで `@excellent-nd` を明示 → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
 
-この通常経路を成立させる前提として、Symphony未導入hostでは人間による実行承認（Human GO）済みのbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
+この通常経路を成立させる前提として、Symphony未導入hostでは現在のuser messageで `@excellent-nd` が明示されたbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
 
 新しい管理基盤を作るのではなく、既存の公式機能と オープンソース を組み合わせ、人間の管理作業と AI 間の不要な context 転送を減らすことが目的である。
 
@@ -16,18 +16,18 @@
 
 ### ChatGPT / Plan
 
-- ChatGPT を要求整理、Plan、GO、結果確認、blocked 確認、次の判断の主 UI とする。
+- ChatGPT を要求整理、Plan、明示的な実行指示、結果確認、blocked 確認、次の判断の主 UI とする。
 - 1 ChatGPT Chat から 1..N Task を生成できる。
 - 1 人作業では 1 Chat → 1 Task になるケースを自然に扱う。
 - 複数人作業では 1 Chat → 複数 Task → 複数 Codex thread に分岐できる。
 
 ### Task 分割・担当配分
 
-- 人間による実行承認（Human GO） 前に Task 一覧と担当割当を確認できる。
+- `@excellent-nd` を明示して実行routingする前に Task 一覧と担当割当を確認できる。
 - 「担当A:担当B = 約3:7」等、おおよその作業負荷比率を指定できる。
 - 比率は Task 件数ではなく、想定作業量を基準に解釈する。
 - 依存関係と並列実行可否を考慮する。
-- 高度な最適化ではなく、ChatGPT が合理的な案を作り、人間が GO で確定する。
+- 高度な最適化ではなく、ChatGPT が合理的な案を作り、人間が実行するuser messageで `@excellent-nd` を明示して確定する。
 
 ### Task / Issue
 
@@ -49,7 +49,7 @@
 ### Bootstrap prerequisite
 
 - 最初のexecution hostへのSymphony runtime導入は、通常Taskの前提を作るbootstrap Taskとして区別する。
-- 人間による実行承認（Human GO）前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
+- 現在のuser messageで `@excellent-nd` が明示される前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
 - Symphony未導入の間だけ、人間が対象host上のCodex CLI等から明示的に開始できる。
 - 通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueをdispatch対象にしない。
 - 完了条件はSymphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routingの非誤dispatch、version set / verification結果の記録までとする。
@@ -146,7 +146,7 @@ Git / test / diff / exit status 等は元データを優先する。
 ### ChatGPT Skill
 
 - 共通 workflow を `skills/excellent-nd/` で管理する。
-- Plan 分割、GO、Issue 作成、schema、結果取り込み、人間判断ゲート（Human Gate）、host migration の再現性を Skill で確保する。
+- Plan 分割、`@excellent-nd` による明示的な実行指示、Issue 作成、schema、結果取り込み、人間判断ゲート（Human Gate）、host migration の再現性を Skill で確保する。
 - 組織固有情報は共通 Skill に含めない。
 
 ### Version management
@@ -184,10 +184,10 @@ Git / test / diff / exit status 等は元データを優先する。
 
 ## 成功条件
 
-1. ChatGPT 上で 1 つの Plan を作成し、人間による実行承認（Human GO） できる。
+1. ChatGPT 上で 1 つの Plan を作成し、実行するuser messageで `@excellent-nd` を明示できる。
 2. Plan から 1..N Task を生成できる。
 3. 複数 Task を複数担当へ概算負荷比率で割り当てられる。
-4. GO 後、Task ごとに GitHub Issue を作成できる。
+4. `@excellent-nd` の明示後、Task ごとに GitHub Issue を作成できる。
 5. Symphony が対象 Issue を取得し、Task ごとに独立した Codex thread で実行できる。
 6. 複数 Task を並列実行できる。
 7. Execution Packet全体がinitial Codex turnへ渡り、Codexが必要な作業を進められる。
@@ -196,18 +196,18 @@ Git / test / diff / exit status 等は元データを優先する。
 10. blocked 時に 人間判断ゲート（Human Gate） へ戻り、判断後に同じ Task を継続できる。
 11. 1 台目の execution host で end-to-end が安定動作する。
 12. 同じ構成を 2 台目へ展開できる見通しが立つ。
-13. 共通 ChatGPT Skill により Plan → GO → Issue → Result 取り込みの再現性を確保できる。
+13. 共通 ChatGPT Skill により Plan → `@excellent-nd` → Issue → Result 取り込みの再現性を確保できる。
 14. validated stable / development を分けて version を管理できる。
 15. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
-16. bootstrap Taskを人間による実行承認（Human GO）とIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
+16. bootstrap Taskを現在のuser messageでの `@excellent-nd` 明示とIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
 
 ## 初期検証順序
 
-1. 人間による実行承認（Human GO）後、1台目のbootstrap Task Issueを作成する。
+1. 現在のuser messageで `@excellent-nd` を明示した後、1台目のbootstrap Task Issueを作成する。
 2. 対象host上のCodex CLI等からbootstrapを明示的に開始し、Symphony stable releaseを導入する。
 3. Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことを確認し、version setとverificationをbootstrap Issueへ保存する。
 4. routing条件を持つ別の通常Taskで、GitHub Issue → Symphony → Codex → branch / change → verification → PR / Result のsingle Task E2Eを通す。
-5. ChatGPT で Plan 作成 → 人間による実行承認（Human GO） → Issue 作成 → 実行開始を確認する。
+5. ChatGPT で Plan 作成 → `@excellent-nd` を明示 → Issue 作成 → 実行開始を確認する。
 6. 元 Chat から「結果を取り込んで」で Result を取得する。
 7. 同一 Task の continuation を確認する。
 8. 2件以上の Task を並列実行する。
