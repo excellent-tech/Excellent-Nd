@@ -105,7 +105,7 @@ class ObserverTest(unittest.TestCase):
             "--explicit-mention",
         ])
 
-        self.assertIsNone(result)
+        self.assertEqual(result, 0)
         github.transition.assert_called_once()
         args, kwargs = github.transition.call_args
         self.assertEqual(args[0:2], (42, "scheduled"))
