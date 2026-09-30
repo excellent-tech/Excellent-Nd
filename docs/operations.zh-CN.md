@@ -103,7 +103,7 @@ service启动时从同一user的`gh auth token`取得credential，只通过proce
 
 ### 11. 执行第一个单任务端到端验证
 
-- **操作**: 仅在当前user message明确包含 `@excellent-nd` 时执行普通Task。该明确指定本身即视为人工执行指令，不再要求额外的 GO、Human GO 或批准语句。
+- **操作**: 仅在当前user message明确包含 `@excellent-nd` 时执行普通Task。该明确指定本身即视为人工执行指令，不再要求额外批准语句。
 - **命令 / UI 操作**: 完成 `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人工审查`。
 - **确认结果**: 变更、验证和PR可追踪；进入review时同一decision移除routing label。
 - **OK**: 进入常规运行。
@@ -114,7 +114,7 @@ service启动时从同一user的`gh auth token`取得credential，只通过proce
 
 ### Q. 什么时候使用 `@excellent-nd`？
 
-A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写）。该 `@excellent-nd` 指定本身就是人工执行指令，不再要求额外的 GO、Human GO 或批准语句。Skill 自动选择不等同于明确执行指令；没有该指定时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
+A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写）。该 `@excellent-nd` 指定本身就是人工执行指令，不再要求额外批准语句。Skill 自动选择不等同于明确执行指令；没有该指定时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
 
 ### Q. 可以只制定计划而不路由执行吗？
 
