@@ -187,10 +187,10 @@ observer在同一Symphony process tree中跟随observable event。只有带Issue
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --explicit-mention
+  --reason "resume condition verified" --human-instruction
 ```
 
-该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。优先同一Issue / thread，不进行无条件自动重新调度。
+该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。对已授权Plan中依赖已完成的后续Task，内部可使用 `--plan-continuation --plan-ref PLAN_REF`；不应要求用户操作Issue编号或CLI参数。优先同一Issue / thread，不进行无条件自动重新调度。
 
 ## 多执行主机的注册与删除
 
@@ -208,7 +208,7 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 | 标签 | 颜色 | 说明 |
 | --- | --- | --- |
 | `symphony-ready` | `0E8A16` | 路由 / 执行控制，不表示工作流状态 |
-| `nd-status:scheduled` | `C2E0C6` | 已获人工执行确认，等待执行 |
+| `nd-status:scheduled` | `C2E0C6` | 已获人工执行指令或有效Plan续行，等待执行 |
 | `nd-status:running` | `1D76DB` | Codex 正在执行 |
 | `nd-status:blocked` | `D93F0B` | 等待人工判断、外部条件或额度 |
 | `nd-status:review` | `FBCA04` | 等待人工审查 |
