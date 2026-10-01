@@ -266,6 +266,39 @@ class ObserverTest(unittest.TestCase):
         cleared = set_human_gate(required, "clear")
         self.assertEqual(task_control_metadata(cleared)["human_gate"], "clear")
 
+    def test_decision_block_marks_plan_task_human_gate_required(self):
+        github = RecordingGitHub(self.config)
+        github.request = Mock(side_effect=[
+            {
+                "body": self.plan_task_body(workflow_status="running"),
+                "labels": [{"name": "symphony-ready"}],
+            },
+            {},
+            {},
+            {},
+            {},
+        ])
+
+        github.transition(
+            42,
+            "blocked",
+            "decision required",
+            block_kind="decision",
+        )
+
+        patch_bodies = [
+            call[2]["body"]
+            for call in github.request.call_args_list
+            if call.args[0] == "PATCH"
+            and call.args[2]
+            and isinstance(call.args[2], dict)
+            and "body" in call.args[2]
+        ]
+        self.assertEqual(len(patch_bodies), 1)
+        metadata = task_control_metadata(patch_bodies[0])
+        self.assertEqual(metadata["workflow_status"], "blocked")
+        self.assertEqual(metadata["human_gate"], "required")
+
     def test_non_transient_usage_limit_is_blocking(self):
         self.assertEqual(
             classify_interruption("account usage limit reached; reset_at=2026-09-22T00:00:00Z"),
