@@ -14,7 +14,7 @@
 
 | 用語 | 初心者向けの意味 | Excellent-Ndでの役割 |
 | --- | --- | --- |
-| ChatGPT | 人間が計画・判断する主画面 | Task分割、`@excellent-nd` による実行指示、結果取り込み |
+| ChatGPT | 人間が計画・判断する主画面 | Task分割、人間実行指示、Plan継続、結果取り込み |
 | GitHub Issue | 1件の作業チケット | Durable Task、Execution Packet、Workpadの保管場所 |
 | Execution Packet | Codexに渡す作業指示書 | Issue body全体 |
 | routing label | 「実行候補にしてよい」というスイッチ | 通常は `symphony-ready` |
@@ -35,7 +35,7 @@ Excellent-Ndの人間向けUXはChatGPT中心です。Issueは、実行するTas
 
 通常は次のように考えます。
 
-- 人間: ChatGPTで目的、優先順位を決め、実行時は `@excellent-nd` を明示する
+- 人間: ChatGPTで目的、優先順位を決め、Chatで明確に実行を指示する。`@excellent-nd` は任意の明示記法
 - GitHub Issue: 実行指示と証拠を保存する
 - Symphony: 実行可能Issueを監視してCodexを起動する
 - Codex: repository作業を実行する
@@ -51,7 +51,7 @@ Excellent-Ndの人間向けUXはChatGPT中心です。Issueは、実行するTas
 
 ```mermaid
 flowchart TD
-    A["A. Human + ChatGPT<br/>Plan / Task / @excellent-nd"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    A["A. Human + ChatGPT<br/>Plan / execution instruction"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
     B --> C["C. Repository integration<br/>dispatch gates"]
     C -->|PASS| D["D. Routing / execution target"]
     E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
@@ -109,7 +109,7 @@ flowchart TD
     J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
     X --> Y["Human / external condition resolution"]
     Y --> C2["C. dispatch gates re-check"]
-    C2 -->|PASS + @excellent-nd| D2["D. routing restored"]
+    C2 -->|PASS + human / Plan authorization| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
     click H2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.md#node-h" "Node H details" _top
     click J2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.md#node-j" "Node J details" _top
@@ -139,7 +139,7 @@ Excellent-NdはSymphonyをforkしてその機能を再実装するのではな�
 | per-Issue workspace lifecycle | Symphony | workspace root + hooks |
 | retry / continuation | Symphony | upstream runtime |
 | Codex App Server起動 | Symphony | `codex.command` |
-| `@excellent-nd` / Plan | Excellent-Nd Skill / ChatGPT | `skills/excellent-nd/` |
+| human execution instruction / Plan continuation | Excellent-Nd Skill / ChatGPT | `skills/excellent-nd/` |
 | repository固有dispatch gate | Excellent-Nd | `scripts/repository_adapter.py` |
 | target routing | Excellent-Nd | `scripts/execution_target.py`、target inventory |
 | workspace安全確認 | Excellent-Nd | `runtime_observer.py::prepare_workspace` |
@@ -170,7 +170,7 @@ Excellent-Ndは特に `before_run` と `after_run` を使って、workspace safe
 
 **何をするか**
 
-人間とChatGPTがTaskの目的、制約、Acceptance criteria、依存関係、owner、execution targetを決めます。実行する場合は現在のuser messageで `@excellent-nd` を明示します。この指定自体を人間の実行指示として扱います。
+人間とChatGPTがTaskの目的、制約、Acceptance criteria、依存関係、owner、execution targetを決めます。初回実行はChatで明確な人間実行指示を受けます。`@excellent-nd` は任意の明示記法です。複数Task Planを一括で実行指示した場合、Task metadataへ `dispatch_scope=plan` / `human_gate=clear` を保存し、後続Taskはdependency closedと既存gate PASSを確認したPlan reconciliationでIssue単位の追加指示なしに継続できます。
 
 **主なソース**
 
@@ -578,13 +578,13 @@ ProjectのField名や値をExcellent-Nd Coreへhard-codeしません。
 
 ```mermaid
 stateDiagram-v2
-    [*] --> scheduled: @excellent-nd / resume
+    [*] --> scheduled: human instruction / Plan continuation
     scheduled --> running: Symphony worker pickup
     running --> review: verification + handoff
     running --> blocked: external / decision blocker
     running --> blocked: runtime interruption
     scheduled --> blocked: before_run safety failure
-    blocked --> scheduled: @excellent-nd + gate PASS
+    blocked --> scheduled: human answer or Plan continuation + gate PASS
     running --> blocked: transition failure fail-closed
     review --> [*]: Human merge + result ingestion + close
 ```
@@ -888,7 +888,7 @@ remote default branchはfresh取得し、local HEADと比較します。
 | --- | --- |
 | 全体方針 | `README.md`, `docs/design.md` |
 | 操作方法 | `docs/operations.md` |
-| Skill / explicit `@excellent-nd` | `skills/excellent-nd/SKILL.md` |
+| Skill / human instruction / Plan continuation | `skills/excellent-nd/SKILL.md` |
 | Task metadata | `skills/excellent-nd/references/task-schema.md` |
 | repository config schema | `scripts/repository_config.py` |
 | dispatch gate | `repository_adapter.py::preflight` |
