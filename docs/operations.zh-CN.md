@@ -1,5 +1,9 @@
 # 使用指南
 
+当前user message中的 `@excellent-nd`（不区分大小写）是Execution Mode selector，表示由ChatGPT转为委托Excellent-Nd → Issue → Symphony → Codex执行。它本身就是人工执行指令，无需额外Human GO。无标签的自然语言、Skill自动选择、现有Issue或Plan metadata本身均不授权新的dispatch / resume。
+
+参阅[Flow与continuation边界正本](design.md#execution-modeとflow境界)。
+
 [日本語（规范原文）](operations.md) | [English](operations.en.md)
 
 本指南面向安装、运行和停用 Excellent-Nd 的操作者。版本编号规则和当前候选版本请参阅[版本方针](../skills/excellent-nd/references/version-policy.md)。
@@ -103,22 +107,22 @@ service启动时从同一user的`gh auth token`取得credential，只通过proce
 
 ### 11. 执行第一个单任务端到端验证
 
-- **操作**: 仅在用户通过对话明确表达执行意图后启动新的Task / Plan。`@excellent-nd` 只是可选的显式写法，并非必需语法。若一次授权整个多Task Plan，预定义后续Task可在依赖和repository gate满足后的Plan reconciliation中继续，无需Issue级人工指令。
+- **操作**: 仅在当前user message明确包含 `@excellent-nd` 时执行普通Task。该明确指定本身即视为人工执行指令，不再要求额外批准语句。
 - **命令 / UI 操作**: 完成 `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人工审查`。
 - **确认结果**: 变更、验证和PR可追踪；进入review时同一decision移除routing label。
 - **OK**: 进入常规运行。
 - **NG**: 检查log、Workpad、diff、验证和PR；解决前不调度更多Task。
-只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在收到明确的人工执行指令并持久化Issue后由人明确启动；这是有限例外，不是常规手动执行路径。
+只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在当前user message明确指定 `@excellent-nd` 且 Issue 持久化后由人明确启动；这是有限例外，不是常规手动执行路径。
 
 ## 运行 / 常见问题
 
 ### Q. 什么时候使用 `@excellent-nd`？
 
-A. 它不是必需语法，只是明确执行意图的一种可选写法。“按这个计划继续”“执行吧”等自然语言指令同样有效。Skill自动选择或单纯计划讨论不属于执行授权。多Task Plan一旦整体获授权，预定义的 `dispatch_scope=plan` 后续Task无需重复指定 `@excellent-nd`。
+A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写）。该 `@excellent-nd` 指定本身就是人工执行指令，不再要求额外批准语句。Skill 自动选择不等同于明确执行指令；没有该指定时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
 
 ### Q. 可以只制定计划而不路由执行吗？
 
-A. 可以。若只是计划/讨论，则整理计划、任务拆分、负责人、估算负载和执行目标候选，不进行routing；若用户明确表示“按这个计划继续”，即使没有 `@excellent-nd` 也属于执行指令。
+A. 可以。不明确指定 `@excellent-nd` 时，可整理计划、任务拆分、负责人、估算负载和执行目标候选，但不进行执行routing。
 
 ### Q. 常规流程是什么？
 
@@ -146,7 +150,7 @@ A. 需求、优先级和人的判断写入 Chat；持久决策和阻塞项写入
 
 ### Q. 如何处理 blocked 与 resume？
 
-A. 把原因、依据和问题保存到 Workpad，将状态更新为 blocked 并停止派发。回答后把决定保存到 Issue，原则上继续同一 Issue 和 Codex thread。
+A. 把原因、依据和问题保存到 Workpad，将状态更新为 blocked 并停止派发。保存人工回答本身不恢复routing。只有当前message明确指定 `@excellent-nd` 且configured gates全部PASS后才resume，优先使用同一Issue / Codex thread。无需额外Human GO。
 
 ### Q. 何时继续同一任务？
 
@@ -183,14 +187,14 @@ pgrep -af 'runtime_observer.py|symphony'
 
 observer在同一Symphony process tree中跟随observable event。只有带Issue context的使用额度耗尽、长时间rate limit、turn timeout、App Server启动失败或agent abnormal exit，才会把已清理秘密和非公开path的category、error、occurred_at、可取得的reset / retry与session / attempt、checkpoint可取得性、剩余工作和恢复条件写入Workpad。短周期retry交给Symphony，不创建comment。缺少Issue编号或准确error时标为无法取得，不作推测。
 
-中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。需要人工判断时设置 `human_gate=required`，等待人工回答；该回答本身即作为继续指令。外部阻塞若保持 `dispatch_scope=plan` / `human_gate=clear`，则可在确认条件解除后的Plan reconciliation中继续。
+中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。仅在当前user message再次明确包含 `@excellent-nd` 后恢复；不要求额外批准语句。
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --human-instruction
+  --reason "resume condition verified" --explicit-mention
 ```
 
-该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。对已授权Plan中依赖已完成的后续Task，内部可使用 `--plan-continuation --plan-ref PLAN_REF`；不应要求用户操作Issue编号或CLI参数。优先同一Issue / thread，不进行无条件自动重新调度。
+该操作保存决策并恢复 `scheduled`、`nd-status:scheduled` 与routing。优先同一Issue / thread，不进行无条件自动重新调度。
 
 ## 多执行主机的注册与删除
 
@@ -208,7 +212,7 @@ python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBE
 | 标签 | 颜色 | 说明 |
 | --- | --- | --- |
 | `symphony-ready` | `0E8A16` | 路由 / 执行控制，不表示工作流状态 |
-| `nd-status:scheduled` | `C2E0C6` | 已获人工执行指令或有效Plan续行，等待执行 |
+| `nd-status:scheduled` | `C2E0C6` | 已获人工执行确认，等待执行 |
 | `nd-status:running` | `1D76DB` | Codex 正在执行 |
 | `nd-status:blocked` | `D93F0B` | 等待人工判断、外部条件或额度 |
 | `nd-status:review` | `FBCA04` | 等待人工审查 |

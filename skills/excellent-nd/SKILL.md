@@ -11,8 +11,8 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 
 ## 基本ルール
 
-1. 新しいTaskまたはPlanを初回dispatchする前に、現在のuser messageで実行意図が明示されていることを要求する。`@excellent-nd` は明示方法の1つだが必須構文ではない。「この計画で進めて」「実行して」等の明確な実行指示も有効とする。Skillの自動選択や単なる相談・計画依頼は実行指示とみなさない。
-2. 複数Taskを含むPlan全体が人間により実行指示された場合、既定ではそのPlan配下の事前定義Taskへ実行権限を継承する。TaskごとのIssue番号やExcellent-Nd内部操作を人間へ要求しない。
+1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間による実行指示として扱い、別個の承認フレーズを要求しない。
+2. Skillの自動選択はdispatch承認ではない。gate未成立時はPlan、調査、安全なGitHub操作までに留める。
 3. ChatGPTで安全に完結するrepository調査、Issue/PR更新、小規模な設定変更、review、result ingestionをCodex dispatchより優先する。
 4. 1.0.xでは原則1 Task = 1 GitHub Issue = 1 Codex threadとする。同一Taskのcontinuationは同一threadを優先する。
 5. `owner` と `execution_target` を分離する。
@@ -86,22 +86,17 @@ dispatch前に対象repositoryのrepository configとtarget台帳を確認し、
 
 30:70等はTask件数比ではなく概算総負荷として扱う。
 
-## 人間の実行指示とPlan継続
+## 明示的な実行指示
 
-初回dispatchでは、現在のuser messageに明確な実行指示を要求する。`@excellent-nd` は任意の明示記法として扱い、特別な承認フレーズを追加要求しない。
+現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、別個の承認フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
 
-複数Taskを含むPlan全体への実行指示では、各Task metadataを `dispatch_scope: "plan"` / `human_gate: "clear"` としてDurable化する。単発Task、段階ごとの確認をユーザーが要求したTask、既存legacy Taskは `dispatch_scope: "task"` とする。
+`@excellent-nd` はcase-insensitiveなExecution Mode selectorであり、単なるapproval phraseではない。タグなしの依頼にはChatGPT自身が対応できるが、自然言語だけでEN / Symphony / Codexへ新しいdispatch / resumeを行わない。過去のPlan承認、既存Issue、Task metadataから現在の人間の実行指示を作り出さない。
 
-`dispatch_scope: "plan"` の後続Taskは、次にChatGPTがPlanをreconcileする機会に以下を全て満たせば、新しい `@excellent-nd` やIssue単位の人間指示なしでroutingしてよい。
+人間の主UIはChatGPT。IssueはDurable Task / Execution Packet、routing、prompt transport、state、checkpoint、Workpad、verification、evidence、result ingestion、branch / PR correlationの内部媒体であり、通常操作としてIssue番号・routing label・Project Field・internal resume commandを人間へ要求しない。
 
-- 同じ `plan_ref` の事前定義Taskである
-- metadataの `human_gate` が `clear` である
-- Durable dependencyが全てterminal / closedである
-- repository-native dispatch gatesが全てPASSする
-- execution target、scope、acceptance criteriaに未承認変更がない
-- routing競合やUNKNOWNがない
+`Chat direct-request`、`Chat direct-request + Excellent-Nd transport`、`legacy issue-driven` を区別する。ENによるIssue作成、後続Chatからの参照・resumeだけでlegacyへ再分類しない。legacyは人間が既存Issueそのものを作業契約として明示した場合だけ使い、そのProject readiness / Agent / Human Approval / Assignee / Claim / Type-specific DoRをENへ無条件に追加しない。
 
-この継続はChatGPTのPlan reconciliationで行い、独自schedulerやChatへのbackground pushを追加しない。Skillの自動選択だけで新しいPlanや未計画Taskを開始しない。
+同一Taskの承認済みScope内のSymphony / Codex thread continuationはturnごとの新タグを要求しない。新しいEN実行要求・新Scope / Task・Human Decision後のresumeは現在のChat指示と明示タグを確認する。回答保存だけではroutingを復元しない。schema / Execution Contextはrouting / correlation / state / evidence用であり、追加authorization gateではない。
 
 Task Issueには:
 
@@ -118,7 +113,7 @@ routing/status表現を固定値で仮定せず、対象repositoryの `.excellen
 
 ## Execute
 
-通常Taskはrepository configで定義されたrouting labelとtarget-specific labelの両方を持ち、設定済みのgeneric dispatch gatesがすべてPASSした場合だけ対象hostへdispatchする。repository-native DoR / dependency / lock / claimは置換しない。必要データ取得不能・paginationで完全性を証明できない・Project item 0件/複数件・UNKNOWNはSTOPとする。
+通常Taskはrepository configで定義されたrouting labelとtarget-specific labelの両方を持ち、設定済みのgeneric dispatch gatesがすべてPASSした場合だけ対象hostへdispatchする。Scope / dependency / Resource Lock / Repository正本 / branch・worktree・PR conflict / validation / 実質Human Gateは維持する。legacy DoR / claimやProject item必須は無条件に追加しない。必要データ取得不能・paginationで完全性を証明できない・UNKNOWNはSTOPとする。Project item 0件/複数件は、そのProject情報を設定済みgate / status integrationが必要とする場合だけSTOPとする。
 
 WORKFLOWは必ず `{{ issue.description }}` または同等手段でIssue body全体をCodex initial promptへ渡す。
 
@@ -136,7 +131,7 @@ Symphonyへ委ねる:
 
 ## Bootstrap prerequisite
 
-最初のhostにSymphonyがなく通常経路を利用できない場合、人間がChatで明確にbootstrap実行を指示した後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。`@excellent-nd` は任意の明示記法である。
+最初のhostにSymphonyがなく通常経路を利用できない場合、現在のuser messageで `@excellent-nd` が明示された後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
 
 bootstrap前提:
 
@@ -155,10 +150,7 @@ blocked時:
 - workflow statusをblockedへ更新する
 - repository configで定義されたrouting labelを外す
 - target identity labelはcorrelation用に維持できる
-- 人間判断が必要なblockedでは `human_gate: "required"` とし、人間回答が得られるまで自動継続しない
-- 人間回答そのものを新しい実行指示として扱い、`human_gate: "clear"` へ戻す。Issue番号や特別な承認フレーズを要求しない
-- 外部要因によるblockedで `dispatch_scope: "plan"` / `human_gate: "clear"` を維持できる場合は、条件解消を検証した後のPlan reconciliationで継続してよい
-- `dispatch_scope: "task"`、scope変更、acceptance criteria変更、execution target変更は新しい人間実行指示を要求する
+- resumeには現在のuser messageで再度 `@excellent-nd` の明示指定を要求する。別個の承認フレーズは要求しない
 - 同一Issue / thread continuationを優先する
 
 ## レビュー
@@ -166,6 +158,8 @@ blocked時:
 review状態にはPRまたは同等のreview可能な参照とverificationを持たせる。
 
 reviewへ遷移する同じdecision stepでrepository configのrouting labelを外す。
+
+AIだけでPR merge、Issue close、final completionを行わない。人間Review / Mergeへ引き渡す。
 
 ## 結果取り込み
 
@@ -175,8 +169,9 @@ reviewへ遷移する同じdecision stepでrepository configのrouting labelを�
 2. Workpad、linked PR、verificationを読む
 3. Task別に進捗・blocker・riskを要約する
 4. 元Planへ再統合する
-5. terminalになったTaskの後続を確認し、Plan継続条件を満たすTaskがあれば同じturnでfresh preflightしてroutingする。人間へIssue番号やExcellent-Nd内部操作を要求しない
-6. 必要がなければraw log全文を取り込まない
+5. 必要がなければraw log全文を取り込まない
+
+結果取り込みだけでは後続Taskをroutingしない。1回のタグ付き指示で複数の既定Taskをどこまで自動継続できるかは未確定であり、新しいPlan authorization schemaを作らず未決として報告する。
 
 ## Checkpoint
 

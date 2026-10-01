@@ -1,5 +1,9 @@
 # バージョン方針
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界](../SKILL.md#明示的な実行指示)を参照してください。
+
 version運用は2系統に分ける。
 
 ## 検証済み安定版
@@ -39,11 +43,25 @@ validated stableとは別に、新しいstable release、nightly、development v
 8. Issue Task control / correlation metadata互換性
 9. account usage / rate-limit handling
 10. process restart / recovery
-11. Plan-level execution authorization and dependency-driven successor continuation
-12. legacy / per-Task authorization fail-closed behavior
-13. human-decision gate prevents silent continuation
 
 合格後に、実際に検証したexact version setをvalidated stableへ昇格する。可能なら旧validated setをrollback候補として保持する。
+
+## Authorization / Flow回帰シナリオ
+
+Skill更新時はfresh contextで次の判断を検証する。CLI testsは内部の `--explicit-mention` attestationと無指定・廃止flagの拒否を検証し、Chat messageの解釈はSkill behavioral testで確認する。CLI flag自体がChatのタグを検出するわけではない。
+
+| Scenario | Expected behavior |
+| --- | --- |
+| 現在のmessageに `@ExCeLlEnT-Nd` と具体的Task、追加承認語なし | configured gates PASSならdispatch可能 |
+| タグなしの「実行して」、Skill auto-selection | ChatGPT自身の対応まで。EN dispatch不可 |
+| タグなしの「続けて」、Durable Issue / 過去Plan承認あり | 新しいdispatch / resumeのauthorizationではない |
+| タグなしの「結果を取り込んで」、後続Taskの依存完了 | 結果を再統合。後続を自動routingしない |
+| running Taskの同一Scope内でtest修正を継続 | Symphony / Codex thread continuation、新タグ不要 |
+| Human Decision後、現在のmessageに `@excellent-nd` とresume指示 | 決定保存・configured gates確認後resume。追加Human GO不要 |
+| Chat-created Issue、label / open gatesのみ | Chat direct-request + EN transportを維持、legacy Project gatesを追加しない |
+| Draft PRあり、人間review / merge未実施 | AIによるmerge / Issue close / final completion不可 |
+
+marker / observer / receipt / workspaceの既存unit testsも実行し、authorization修正がruntime lifecycleを巻き戻していないことを確認する。
 
 ## Excellent-Nd のバージョン番号
 

@@ -1,5 +1,9 @@
 # Repository / Issue integration
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界](../SKILL.md#明示的な実行指示)を参照してください。
+
 Excellent-Nd導入のLevel 2。execution host setupより先に、対象repositoryの既存Issue運用とExcellent-Ndのsemantic rolesを整合させる。
 
 ## 目的
@@ -265,7 +269,7 @@ python3 scripts/repository_adapter.py \
   --issue 123
 ```
 
-すべてのconfigured gateがPASSし、target routing、repository-native lock/claim等が成立した場合だけdispatchする。初回Task / Planは現在のuser messageによる明確な人間実行指示を要求する。`@excellent-nd` は任意の明示記法である。既承認Planの後続Taskは `dispatch_scope: plan`、`human_gate: clear`、同一 `plan_ref`、全dependency closedを確認できる場合に限り、新しい人間指示なしでPlan continuationとしてroutingできる。
+すべてのconfigured gateがPASSし、現在のuser messageで `@excellent-nd` が明示され、target routing、repository-native lock/claim等が成立した場合だけdispatchする。`@excellent-nd` の明示指定自体を人間の実行指示として扱い、追加の承認フレーズは要求しない。
 
 ### Runtime event mapping
 

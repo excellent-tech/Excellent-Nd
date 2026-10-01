@@ -1,14 +1,18 @@
 # 1.0.x スコープ
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](design.md#execution-modeとflow境界)を参照してください。
+
 ## 1.0.x の目的
 
 1.0.x は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphony + Codex を利用して、1 つの Plan から 1 件以上の Task を安全に並列実行できることを確認する。
 
 中心フロー:
 
-> ChatGPT で Plan 作成 → Task 分割・担当配分 → 人間がChatで明確にPlan実行を指示 → TaskごとにGitHub IssueへDurable化 → Symphony / Codex実行 → GitHubに結果保存 → 人間が「結果を取り込んで」→ ChatGPTが元Planへ再統合し、dependency-readyな既承認後続Taskを裏側で継続
+> ChatGPT で Plan 作成 → Task 分割・担当配分 → 実行するuser messageで `@excellent-nd` を明示 → Task ごとに GitHub Issue 作成 → Symphony / Codex 実行 → GitHub に結果保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合
 
-この通常経路を成立させる前提として、Symphony未導入hostでは人間の明確な実行指示を受けたbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
+この通常経路を成立させる前提として、Symphony未導入hostでは現在のuser messageで `@excellent-nd` が明示されたbootstrap TaskをGitHub Issueへ記録し、人間が対象host上のCodex CLI等から明示的に開始する限定経路を使う。
 
 新しい管理基盤を作るのではなく、既存の公式機能と オープンソース を組み合わせ、人間の管理作業と AI 間の不要な context 転送を減らすことが目的である。
 
@@ -16,24 +20,23 @@
 
 ### ChatGPT / Plan
 
-- ChatGPT を要求整理、Plan、人間実行指示、結果確認、blocked 確認、次の判断の主 UI とする。Issue番号、routing label、内部resume commandは通常の人間UIにしない。
+- ChatGPT を要求整理、Plan、明示的な実行指示、結果確認、blocked 確認、次の判断の主 UI とする。
 - 1 ChatGPT Chat から 1..N Task を生成できる。
 - 1 人作業では 1 Chat → 1 Task になるケースを自然に扱う。
 - 複数人作業では 1 Chat → 複数 Task → 複数 Codex thread に分岐できる。
 
 ### Task 分割・担当配分
 
-- 明確な人間実行指示でroutingする前に Task 一覧と担当割当を確認できる。`@excellent-nd` は任意の明示記法であり必須構文ではない。
+- `@excellent-nd` を明示して実行routingする前に Task 一覧と担当割当を確認できる。
 - 「担当A:担当B = 約3:7」等、おおよその作業負荷比率を指定できる。
 - 比率は Task 件数ではなく、想定作業量を基準に解釈する。
 - 依存関係と並列実行可否を考慮する。
-- 高度な最適化ではなく、ChatGPT が合理的な案を作り、人間がChatで明確に実行を指示して確定する。複数Task Planでは、その1回のPlan実行指示を事前定義Taskへ継承できる。
+- 高度な最適化ではなく、ChatGPT が合理的な案を作り、人間が実行するuser messageで `@excellent-nd` を明示して確定する。
 
 ### Task / Issue
 
 - 1.0.x で実行する Task は GitHub Issue として Durable 化する。
 - Taskごとに Plan reference / Task reference / owner / Execution Packet を記録する。
-- Task control metadataに `dispatch_scope` と `human_gate` を記録する。`dispatch_scope=plan` は既承認Planの事前定義後続Taskへ実行権限を継承し、`human_gate=required` は人間判断までその継承を停止する。field欠落legacy Taskはfail-closedでper-Task扱いとする。
 - 通常Taskには利用するprofileのrouting情報を追加する。
 - `plan_ref` はrepository内で衝突しない `P-YYYYMMDD-<6文字の小文字16進数>`、`task_ref` はPlan内で一意な `T-001` 形式を基本とし、GitHub Issue URL / numberをDurable Taskの実体参照にする。
 - GitHub 操作は ChatGPT の公式連携を優先する。
@@ -50,7 +53,7 @@
 ### Bootstrap prerequisite
 
 - 最初のexecution hostへのSymphony runtime導入は、通常Taskの前提を作るbootstrap Taskとして区別する。
-- 人間の明確な実行指示前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
+- 現在のuser messageで `@excellent-nd` が明示される前には開始しない。開始前にobjective、constraints、acceptance criteria、execution target、verification方法をGitHub Issueへ記録し、完了後にverification結果を追記する。
 - Symphony未導入の間だけ、人間が対象host上のCodex CLI等から明示的に開始できる。
 - 通常Task用routing label / fieldは要求せず、execution-control条件を付けない。既存profileがある場合もbootstrap Issueをdispatch対象にしない。
 - 完了条件はSymphonyの導入とversion、Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routingの非誤dispatch、version set / verification結果の記録までとする。
@@ -126,10 +129,8 @@ Git / test / diff / exit status 等は元データを優先する。
 ### 人間判断ゲート（Human Gate）
 
 - blocked の理由・質問を GitHub に永続化する。
-- 人間判断が必要なblockedは `human_gate=required` としてPlan continuationを停止する。
 - ChatGPT が人間へ判断事項を提示する。
-- 人間の回答そのものを継続指示として扱い、`human_gate=clear`へ戻してTask継続へつなげる。Issue番号や特別な承認構文を要求しない。
-- 外部要因blockedで `dispatch_scope=plan` / `human_gate=clear` を維持できる場合は、条件解消を検証した後のPlan reconciliationで継続できる。
+- 人間の回答を ChatGPT が GitHub に反映し、Task 継続へつなげる。
 - 複雑な approval engine は作らない。
 
 ### checkpoint / 再開
@@ -149,7 +150,7 @@ Git / test / diff / exit status 等は元データを優先する。
 ### ChatGPT Skill
 
 - 共通 workflow を `skills/excellent-nd/` で管理する。
-- Plan 分割、人間実行指示、Plan継続権限、Issue 作成、schema、結果取り込み、人間判断ゲート（Human Gate）、host migration の再現性を Skill で確保する。
+- Plan 分割、`@excellent-nd` による明示的な実行指示、Issue 作成、schema、結果取り込み、人間判断ゲート（Human Gate）、host migration の再現性を Skill で確保する。
 - 組織固有情報は共通 Skill に含めない。
 
 ### Version management
@@ -187,10 +188,10 @@ Git / test / diff / exit status 等は元データを優先する。
 
 ## 成功条件
 
-1. ChatGPT 上で 1 つの Plan を作成し、人間がChatで明確にPlan実行を指示できる。
+1. ChatGPT 上で 1 つの Plan を作成し、実行するuser messageで `@excellent-nd` を明示できる。
 2. Plan から 1..N Task を生成できる。
 3. 複数 Task を複数担当へ概算負荷比率で割り当てられる。
-4. Plan実行指示後、TaskごとにGitHub Issueを作成し、Plan継続権限をDurable metadataへ保存できる。
+4. `@excellent-nd` の明示後、Task ごとに GitHub Issue を作成できる。
 5. Symphony が対象 Issue を取得し、Task ごとに独立した Codex thread で実行できる。
 6. 複数 Task を並列実行できる。
 7. Execution Packet全体がinitial Codex turnへ渡り、Codexが必要な作業を進められる。
@@ -199,25 +200,23 @@ Git / test / diff / exit status 等は元データを優先する。
 10. blocked 時に 人間判断ゲート（Human Gate） へ戻り、判断後に同じ Task を継続できる。
 11. 1 台目の execution host で end-to-end が安定動作する。
 12. 同じ構成を 2 台目へ展開できる見通しが立つ。
-13. 共通 ChatGPT Skill により Plan → 人間実行指示 → Issue → Result取り込み → dependency-ready successor継続の再現性を確保できる。
+13. 共通 ChatGPT Skill により Plan → `@excellent-nd` → Issue → Result 取り込みの再現性を確保できる。
 14. validated stable / development を分けて version を管理できる。
 15. 独自 Runner、独自 DB、独自 scheduler、通知基盤を作らずに上記を満たす。
-16. bootstrap Taskを人間の明確な実行指示とIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
+16. bootstrap Taskを現在のuser messageでの `@excellent-nd` 明示とIssue記録の下で完了し、その後は通常のSymphony経路だけで実行Taskを処理できる。
 
 ## 初期検証順序
 
-1. 人間の明確な実行指示後、1台目のbootstrap Task Issueを作成する。
+1. 現在のuser messageで `@excellent-nd` を明示した後、1台目のbootstrap Task Issueを作成する。
 2. 対象host上のCodex CLI等からbootstrapを明示的に開始し、Symphony stable releaseを導入する。
 3. Codex App Server利用可能性、Git / GitHub接続、WORKFLOW / profile読込、routing条件が既存Issueを意図せずdispatchしないことを確認し、version setとverificationをbootstrap Issueへ保存する。
 4. routing条件を持つ別の通常Taskで、GitHub Issue → Symphony → Codex → branch / change → verification → PR / Result のsingle Task E2Eを通す。
-5. ChatGPT で Plan 作成 → 人間がPlan実行を指示 → Issue作成 → 実行開始を確認する。
+5. ChatGPT で Plan 作成 → `@excellent-nd` を明示 → Issue 作成 → 実行開始を確認する。
 6. 元 Chat から「結果を取り込んで」で Result を取得する。
 7. 同一 Task の continuation を確認する。
 8. 2件以上の Task を並列実行する。
 9. Plan から複数 Task を作り、担当・負荷配分を反映する。
 10. blocked → 人間判断ゲート（Human Gate） → continuation を確認する。
-11. 既承認Planで先行Task close → dependency-ready後続Taskが新しいIssue単位指示なしでPlan reconciliationから継続することを確認する。
-12. legacy / per-Task Taskは人間指示なしではfail-closedになることを確認する。
 11. 安定後、2台目を既存経路でprovisioningできるか確認し、できない場合だけ限定bootstrap規約を使う。
 
 検証結果が出るまでは、multi-host routing の細部、人間判断ゲート（Human Gate） の具体的遷移、usage telemetry の必須項目を固定しない。

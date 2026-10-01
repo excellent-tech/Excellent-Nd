@@ -1,5 +1,9 @@
 # Excellent-Nd 运行时架构指南
 
+当前user message中的 `@excellent-nd`（不区分大小写）是Execution Mode selector，表示由ChatGPT转为委托Excellent-Nd → Issue → Symphony → Codex执行。它本身就是人工执行指令，无需额外Human GO。无标签的自然语言、Skill自动选择、现有Issue或Plan metadata本身均不授权新的dispatch / resume。
+
+参阅[Flow与continuation边界正本](design.md#execution-modeとflow境界)。
+
 [日本語（规范原文）](runtime-architecture.md) | [English](runtime-architecture.en.md)
 
 本文面向第一次接触 GitHub Issue、OpenAI Symphony 和 Codex App Server 的读者，目标是说明 Excellent-Nd 内部“发生了什么、按什么顺序发生、由哪些源码负责”。
@@ -14,7 +18,7 @@
 
 | 术语 | 初学者理解 | Excellent-Nd中的作用 |
 | --- | --- | --- |
-| ChatGPT | 人进行计划和判断的主要界面 | Task拆分、人工执行指令、Plan续行、结果回收 |
+| ChatGPT | 人进行计划和判断的主要界面 | Task拆分、明确的 `@excellent-nd` 执行指令、结果回收 |
 | GitHub Issue | 一张可长期保存的工作票 | Durable Task、Execution Packet、Workpad |
 | Execution Packet | 交给Codex的工作说明 | 整个Issue body |
 | routing label | “允许进入执行候选”的开关 | 通常是 `symphony-ready` |
@@ -41,7 +45,7 @@ Excellent-Nd对人是conversation-first，对内部执行是Issue-first。Issue�
 
 ```mermaid
 flowchart TD
-    A["A. Human + ChatGPT<br/>Plan / execution instruction"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    A["A. Human + ChatGPT<br/>Plan / @excellent-nd"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
     B --> C["C. Repository integration<br/>dispatch gates"]
     C -->|PASS| D["D. Routing / execution target"]
     E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
@@ -95,7 +99,7 @@ flowchart TD
     J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
     X --> Y["Human / external condition resolution"]
     Y --> C2["C. dispatch gates re-check"]
-    C2 -->|PASS + human / Plan authorization| D2["D. routing restored"]
+    C2 -->|PASS + @excellent-nd| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
     click H2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.zh-CN.md#node-h" "Node H details" _top
     click J2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.zh-CN.md#node-j" "Node J details" _top
@@ -125,7 +129,7 @@ Excellent-Nd不fork这些职责，而是在Symphony前后增加ChatGPT policy、
 | workspace lifecycle | Symphony | workspace配置 + hooks |
 | retry / continuation | Symphony | upstream runtime |
 | Codex启动 | Symphony | `codex.command` |
-| 人工执行指令 / Plan续行 | Excellent-Nd Skill | `skills/excellent-nd/` |
+| `@excellent-nd` / Plan | Excellent-Nd Skill | `skills/excellent-nd/` |
 | repository gate | Excellent-Nd | `scripts/repository_adapter.py` |
 | target routing | Excellent-Nd | `scripts/execution_target.py` |
 | workspace安全检查 | Excellent-Nd | `runtime_observer.py::prepare_workspace` |
@@ -151,7 +155,7 @@ Excellent-Nd主要利用Symphony的 `after_create`、`before_run`、`after_run` 
 - `skills/excellent-nd/references/task-schema.md`
 - `skills/excellent-nd/references/workflow.md`
 
-Human与ChatGPT确定目标、约束、验收条件、依赖、owner和execution target。首次执行需要在对话中明确给出人工执行指令；`@excellent-nd` 只是可选写法。若一次授权整个多Task Plan，则在Task metadata中持久化 `dispatch_scope=plan` / `human_gate=clear`，后续Task在依赖关闭且既有gate通过后，可由后续Plan reconciliation继续，无需Issue级人工指令。
+Human与ChatGPT确定目标、约束、验收条件、依赖、owner和execution target。执行时在当前user message中明确指定 `@excellent-nd`；不再要求额外批准语句。
 
 ### Node B
 
@@ -357,13 +361,13 @@ ChatGPT读取Issue、PR、Workpad和verification，将结果重新合并回原Pl
 
 ```mermaid
 stateDiagram-v2
-    [*] --> scheduled: human instruction / Plan continuation
+    [*] --> scheduled: @excellent-nd / resume
     scheduled --> running: worker pickup
     running --> review: verification / handoff
     running --> blocked: task blocker
     running --> blocked: runtime interruption
     scheduled --> blocked: before_run safety failure
-    blocked --> scheduled: human answer or Plan continuation + gates PASS
+    blocked --> scheduled: @excellent-nd + gates PASS
     running --> blocked: transition failure / fail closed
     review --> [*]: Human merge + result ingestion + close
 ```
@@ -445,7 +449,7 @@ remote default branch必须fresh取得后比较。
 | --- | --- |
 | 项目整体 | `README.md`, `docs/design.md` |
 | 操作步骤 | `docs/operations.zh-CN.md` |
-| 人工执行指令 / Plan续行 / Skill | `skills/excellent-nd/SKILL.md` |
+| 明确的 `@excellent-nd` / Skill | `skills/excellent-nd/SKILL.md` |
 | Task metadata | `skills/excellent-nd/references/task-schema.md` |
 | Repository config | `scripts/repository_config.py` |
 | Dispatch gates | `repository_adapter.py::preflight` |

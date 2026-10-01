@@ -1,5 +1,9 @@
 # Excellent-Nd Runtime Architecture Guide
 
+A case-insensitive `@excellent-nd` in the current user message selects delegation from ChatGPT to Excellent-Nd → Issue → Symphony → Codex. It is an execution-mode selector and itself the human execution instruction; no separate Human GO phrase is required. Tagless natural language, Skill auto-selection, an existing Issue, or Plan metadata alone never authorizes new dispatch / resume.
+
+See the [authoritative flow and continuation boundaries](design.md#execution-modeとflow境界).
+
 [日本語 (authoritative)](runtime-architecture.md) | [简体中文](runtime-architecture.zh-CN.md)
 
 This guide explains Excellent-Nd for readers who are new to GitHub Issues, OpenAI Symphony, and Codex App Server. Its goal is to make it possible to trace what happens, in what order, and which source code is responsible.
@@ -14,7 +18,7 @@ The Japanese version is authoritative. For installation and day-to-day operation
 
 | Term | Beginner meaning | Role in Excellent-Nd |
 | --- | --- | --- |
-| ChatGPT | Main human planning and decision UI | Task split, human execution instruction, Plan continuation, result ingestion |
+| ChatGPT | Main human planning and decision UI | Task split, explicit `@excellent-nd` instruction, result ingestion |
 | GitHub Issue | One durable work ticket | Durable Task, Execution Packet, Workpad |
 | Execution Packet | Instructions given to Codex | Entire Issue body |
 | routing label | Switch that makes a Task dispatchable | Usually `symphony-ready` |
@@ -41,7 +45,7 @@ Each block displays its **A-Q** Node identifier. GitHub's Mermaid renderer does 
 
 ```mermaid
 flowchart TD
-    A["A. Human + ChatGPT<br/>Plan / execution instruction"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
+    A["A. Human + ChatGPT<br/>Plan / @excellent-nd"] --> B["B. GitHub Issue<br/>Durable Task / Execution Packet"]
     B --> C["C. Repository integration<br/>dispatch gates"]
     C -->|PASS| D["D. Routing / execution target"]
     E["E. Execution host setup<br/>setup / smoke / service"] -. prerequisite .-> F["F. Symphony polling"]
@@ -95,7 +99,7 @@ flowchart TD
     J2 --> X["Routing OFF<br/>workflow_status / repository status / Workpad"]
     X --> Y["Human / external condition resolution"]
     Y --> C2["C. dispatch gates re-check"]
-    C2 -->|PASS + human / Plan authorization| D2["D. routing restored"]
+    C2 -->|PASS + @excellent-nd| D2["D. routing restored"]
     D2 --> F2["F. Symphony polling"]
     click H2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-h" "Node H details" _top
     click J2 href "https://github.com/excellent-tech/Excellent-Nd/blob/docs/beginner-runtime-guide/docs/runtime-architecture.en.md#node-j" "Node J details" _top
@@ -125,7 +129,7 @@ Excellent-Nd adds policy and GitHub lifecycle synchronization around that runtim
 | workspace lifecycle | Symphony | workspace config + hooks |
 | retry / continuation | Symphony | upstream runtime |
 | Codex launch | Symphony | `codex.command` |
-| human execution instruction / Plan continuation | Excellent-Nd Skill | `skills/excellent-nd/` |
+| `@excellent-nd` / Plan | Excellent-Nd Skill | `skills/excellent-nd/` |
 | repository gates | Excellent-Nd | `scripts/repository_adapter.py` |
 | target routing | Excellent-Nd | `scripts/execution_target.py` |
 | workspace safety | Excellent-Nd | `runtime_observer.py::prepare_workspace` |
@@ -155,7 +159,7 @@ Sources:
 - `skills/excellent-nd/references/task-schema.md`
 - `skills/excellent-nd/references/workflow.md`
 
-ChatGPT and the human define objective, constraints, acceptance criteria, dependencies, owner, and execution target. Initial execution requires a clear conversational human instruction; `@excellent-nd` is optional notation. When an entire multi-Task Plan is authorized, Task metadata persists `dispatch_scope=plan` / `human_gate=clear`, allowing dependency-ready successors to continue during later Plan reconciliation without Issue-level human commands.
+ChatGPT and the human define objective, constraints, acceptance criteria, dependencies, owner, and execution target. Execution is authorized by explicitly naming `@excellent-nd` in the current user message; no separate approval phrase is required.
 
 ### Node B
 
@@ -361,13 +365,13 @@ Normal transitions keep these surfaces consistent. Status authority is configure
 
 ```mermaid
 stateDiagram-v2
-    [*] --> scheduled: human instruction / Plan continuation
+    [*] --> scheduled: @excellent-nd / resume
     scheduled --> running: worker pickup
     running --> review: verification / handoff
     running --> blocked: task blocker
     running --> blocked: runtime interruption
     scheduled --> blocked: before_run safety failure
-    blocked --> scheduled: human answer or Plan continuation + gates PASS
+    blocked --> scheduled: @excellent-nd + gates PASS
     running --> blocked: transition failure / fail closed
     review --> [*]: Human merge + result ingestion + close
 ```
@@ -447,7 +451,7 @@ Always compare against a freshly fetched remote default-branch head.
 | --- | --- |
 | Project overview | `README.md`, `docs/design.md` |
 | Operator procedures | `docs/operations.en.md` |
-| human instruction / Plan continuation / Skill | `skills/excellent-nd/SKILL.md` |
+| explicit `@excellent-nd` / Skill | `skills/excellent-nd/SKILL.md` |
 | Task metadata | `skills/excellent-nd/references/task-schema.md` |
 | Repository config | `scripts/repository_config.py` |
 | Dispatch gates | `repository_adapter.py::preflight` |

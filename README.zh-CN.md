@@ -1,5 +1,9 @@
 # Excellent-Nd
 
+当前user message中的 `@excellent-nd`（不区分大小写）是Execution Mode selector，表示由ChatGPT转为委托Excellent-Nd → Issue → Symphony → Codex执行。它本身就是人工执行指令，无需额外Human GO。无标签的自然语言、Skill自动选择、现有Issue或Plan metadata本身均不授权新的dispatch / resume。
+
+参阅[Flow与continuation边界正本](docs/design.md#execution-modeとflow境界)。
+
 Excellent-Nd 是一个开源的 **AI驱动开发工作流**：它以 ChatGPT 为计划与判断中心，连接 GitHub Issues、[OpenAI Symphony](https://github.com/openai/symphony) 和 Codex 执行开发 Task，采用 Conversation-first / Plan-and-Execute 模式，并提供 excellent-nd Skill 作为 ChatGPT 侧操作接口。
 
 > 第一个常规单任务端到端流程已经验证。项目处于面向 1.0 正式版的 beta / development 系列，结果拉取、continuation 和多任务场景仍在验证。
@@ -10,7 +14,7 @@ Excellent-Nd 是一个开源的 **AI驱动开发工作流**：它以 ChatGPT 为
 
 在小规模或接近个人开发的场景中，同一批成员往往需要同时负责需求整理、计划、任务分配、实现和验证。如果每个小任务都由人工创建和维护 Issue，管理本身可能成为额外负担。
 
-Excellent-Nd 以 ChatGPT 作为需求整理、计划、任务分配、执行指令和结果确认的主要 UI。用户只需在对话中明确表示“按这个计划继续”等执行意图；`@excellent-nd` 只是可选的显式写法，并非必需语法。若一次授权整个多 Task Plan，预先定义的后续 Task 会继承 Plan 级执行权限，并在依赖和 repository gate 满足后由后续 Plan reconciliation 继续。人不需要把 Issue 管理当作主要 UI。
+Excellent-Nd 以 ChatGPT 作为需求整理、计划、任务分配、明确执行指令和结果确认的主要 UI。当当前user message明确指定 `@excellent-nd` 时，该指定本身即视为人工执行指令；实际执行的 Task 会作为 GitHub Issue 持久化，并交给 Symphony / Codex。人不需要把 Issue 管理当作主要 UI，只需把需要的结果拉回 ChatGPT。
 
 不会把完整聊天历史交给 Codex，而是为每个 Task 生成精简的 Execution Packet，包括目标、约束、验收条件、相关决策和参考信息。返回结果也以结构化信息为主，而不是完整 Codex 日志。
 
@@ -18,7 +22,7 @@ Excellent-Nd 以 ChatGPT 作为需求整理、计划、任务分配、执行指�
 
 ```text
 Human + ChatGPT
-  需求确认 → Plan → Task拆分 / 分配 → 在对话中给出明确执行指令
+  需求确认 → Plan → Task拆分 / 分配 → 明确指定 `@excellent-nd`
                                       ↓
 GitHub Issues
   每个Task的 Execution Packet / routing
@@ -61,9 +65,9 @@ Excellent-Nd 不会重新实现 Symphony 已提供的：
 
 1.0.x 聚焦以下路径：
 
-> 在 ChatGPT 中创建 Plan → 拆分为 1..N 个 Task 并分配负责人 → 在对话中给出明确的 Plan 执行指令 → 每个 Task 持久化为 GitHub Issue → 通过 Symphony / Codex 执行 → 将结果保存到 GitHub → 人在原 Chat 中要求“拉取结果” → ChatGPT 重新整合 Plan，并在后台推进依赖已满足的已授权后续 Task
+> 在 ChatGPT 中创建 Plan → 拆分为 1..N 个 Task 并分配负责人 → 在请求执行的当前user message中明确指定 `@excellent-nd` → 为每个 Task 创建 GitHub Issue → 通过 Symphony / Codex 执行 → 将结果保存到 GitHub → 人在原 Chat 中要求“拉取结果” → ChatGPT 将结果重新合并到原 Plan
 
-在第一台 execution host，或无法通过现有路径完成 provisioning 的后续 host 上安装 Symphony runtime 的 bootstrap Task，是一项受限例外。收到明确的人类执行指令后，先在 GitHub Issue 中记录目标、验收条件和验证方法，再由人明确地从目标 host 上的 Codex CLI 或同等工具启动；随后将实测 version set 和验证结果保存到 Issue。runtime 验证完成后即转入通常的 Issue-first execution；该例外不是通用的手动执行路径。
+在第一台 execution host，或无法通过现有路径完成 provisioning 的后续 host 上安装 Symphony runtime 的 bootstrap Task，是一项受限例外。当前user message明确指定 `@excellent-nd` 后，先在 GitHub Issue 中记录目标、验收条件和验证方法，再由人明确地从目标 host 上的 Codex CLI 或同等工具启动；随后将实测 version set 和验证结果保存到 Issue。runtime 验证完成后即转入通常的 Issue-first execution；该例外不是通用的手动执行路径。
 
 1.0.x 不实现 ChatGPT 自动 push、自建 Codex Runner、自建数据库、自建 scheduler、自建 Kanban、大型 Web UI、multi-agent、多 AI provider、SaaS 或 multi-tenant。
 
@@ -72,7 +76,7 @@ Excellent-Nd 不会重新实现 Symphony 已提供的：
 
 ## ChatGPT Skill
 
-Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excellent-nd/) 中管理。该 Skill 用于标准化 Plan 拆分、人工执行指令、Plan 级续行权限、Issue 创建、Task control / correlation metadata、结果拉取、人工决策关口（Human Gate） 和 host 迁移规则，并不会新增通信基础设施。
+Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excellent-nd/) 中管理。该 Skill 用于标准化 Plan 拆分、明确的 `@excellent-nd` 执行指令、Issue 创建、Task control / correlation metadata、结果拉取、人工决策关口（Human Gate） 和 host 迁移规则，并不会新增通信基础设施。
 
 安装该 Skill **只会启用 ChatGPT 侧的操作规则**。这并不表示 Symphony / Codex runtime 已完成安装和配置，也不表示 1.0.x 端到端验证已经完成。1.0.x 执行仍需要在 execution host 上另行准备可用的 Symphony、Codex 和 GitHub 集成。
 
@@ -81,7 +85,7 @@ Excellent-Nd 的通用 ChatGPT workflow 在 [skills/excellent-nd](skills/excelle
 | Component | 职责 |
 | --- | --- |
 | Excellent-Nd | 开源项目 / AI驱动开发工作流 |
-| excellent-nd Skill | ChatGPT 侧计划、人工执行指令、Plan 续行与操作接口 |
+| excellent-nd Skill | ChatGPT 侧计划、明确的 `@excellent-nd` 执行指令与操作接口 |
 | GitHub | 持久任务、Execution Packet、checkpoint、PR / 结果 |
 | Symphony | Issue-first 执行编排 |
 | Codex | 任务执行 worker |

@@ -1,5 +1,9 @@
 # User Guide
 
+A case-insensitive `@excellent-nd` in the current user message selects delegation from ChatGPT to Excellent-Nd → Issue → Symphony → Codex. It is an execution-mode selector and itself the human execution instruction; no separate Human GO phrase is required. Tagless natural language, Skill auto-selection, an existing Issue, or Plan metadata alone never authorizes new dispatch / resume.
+
+See the [authoritative flow and continuation boundaries](design.md#execution-modeとflow境界).
+
 [日本語 (authoritative)](operations.md) | [简体中文](operations.zh-CN.md)
 
 This guide is for operators installing, running, and disabling Excellent-Nd. See the [version policy](../skills/excellent-nd/references/version-policy.md) for numbering rules and the current candidate.
@@ -103,22 +107,22 @@ The service obtains a token from the same user's `gh auth token` at startup and 
 
 ### 11. Run the first single-Task E2E
 
-- **Action**: Start a new Task or Plan only after a clear conversational human execution instruction. `@excellent-nd` is optional notation, not required syntax. When an entire multi-Task Plan is authorized, predefined successors may continue during Plan reconciliation after dependencies and repository gates pass, without Issue-level human commands.
+- **Action**: Run a normal Task only when the current user message explicitly contains `@excellent-nd`. Treat that explicit mention itself as the human execution instruction; do not require a separate approval phrase.
 - **Command / UI**: Complete `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → Human review`.
 - **Expected result**: Change, verification, and PR are traceable; review removes the routing label in the same decision.
 - **If OK**: Begin normal operations.
 - **If not OK**: Inspect logs, Workpad, diff, verification, and PR; dispatch no more Tasks until resolved.
-Installing the Skill does not install the runtime. Bootstrap on an unprepared host is a limited exception explicitly started by a human after a clear execution instruction and Issue persistence; it is not the normal manual execution path.
+Installing the Skill does not install the runtime. Bootstrap on an unprepared host is a limited exception explicitly started by a human after the current user message names `@excellent-nd` and the Issue is persisted; it is not the normal manual execution path.
 
 ## Operations / FAQ
 
 ### Q. When should I use `@excellent-nd`?
 
-A. Use it in a new conversation or when the Skill is not selected automatically. Once active, it need not prefix every message.
+A. Include it in the current user message requesting new EN dispatch or resume (case-insensitive). It selects Codex delegation, not just approval; no additional approval phrase is needed. Skill auto-selection does not authorize dispatch. Existing same-Task Symphony / Codex continuation within the authorized scope does not require a new tag per turn.
 
 ### Q. Can I create only a Plan without routing work?
 
-A. Yes. Planning-only requests can define the Plan, Task split, owners, approximate workload, and target candidates without routing work. A clear conversational instruction such as “proceed with this plan” authorizes execution even without `@excellent-nd`.
+A. Yes. Define the Plan, Task split, owners, approximate workload, and target candidates without `@excellent-nd`; do not route executable work until the current user message explicitly names `@excellent-nd`.
 
 ### Q. What is the normal flow?
 
@@ -146,7 +150,7 @@ A. Put requirements, priorities, and human decisions in Chat; durable decisions 
 
 ### Q. How do blocked and resume work?
 
-A. Save the reason, evidence, and question in the Workpad; update status to blocked; and stop dispatch. After an answer, save the decision and normally resume the same Issue and Codex thread.
+A. Save the reason, evidence, and question in the Workpad; update status to blocked; and stop dispatch. Save the human answer without restoring routing. Resume only after the current message explicitly names `@excellent-nd` and configured gates pass; prefer the same Issue and Codex thread. No separate Human GO phrase is required.
 
 ### Q. When is work a same-Task continuation?
 
@@ -183,14 +187,14 @@ Restart with `systemctl --user restart 'excellent-nd@<repository-instance>.servi
 
 The observer follows observable events in the same Symphony process tree. Only issue-scoped usage exhaustion, long rate limits, turn timeout, App Server startup failure, or abnormal agent exit creates a sanitized Workpad entry with category, error, occurred_at, available reset / retry and session / attempt values, checkpoint availability, remaining work, and resume condition. Short retries remain with Symphony and create no comment. Missing Issue or exact error data is reported as unavailable, never guessed.
 
-An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and removal of `symphony-ready` in the same Issue update. Review also removes routing in the same decision. A human-decision block sets `human_gate=required` and waits for the human answer; that answer itself authorizes continuation. An external block may continue during later Plan reconciliation when `dispatch_scope=plan`, `human_gate=clear`, and the condition is verified resolved.
+An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and removal of `symphony-ready` in the same Issue update. Review also removes routing in the same decision. Resume only after the current user message again explicitly contains `@excellent-nd`; no separate approval phrase is required.
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --human-instruction
+  --reason "resume condition verified" --explicit-mention
 ```
 
-This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. For a dependency-ready successor in an already-authorized Plan, the internal operator path may use `--plan-continuation --plan-ref PLAN_REF`; users should not be asked to manipulate Issue numbers or CLI flags. Prefer the same Issue / thread; never redispatch unconditionally.
+This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. Prefer the same Issue / thread; never redispatch unconditionally.
 
 ## Registering and removing multiple execution hosts
 
@@ -208,7 +212,7 @@ If a private hostname would leak infrastructure in a public repository, use a no
 | Label | Color | Description |
 | --- | --- | --- |
 | `symphony-ready` | `0E8A16` | Routing / execution control; not workflow status |
-| `nd-status:scheduled` | `C2E0C6` | Human instruction or valid Plan continuation received; waiting to run |
+| `nd-status:scheduled` | `C2E0C6` | Explicit `@excellent-nd` instruction received; waiting to run |
 | `nd-status:running` | `1D76DB` | Codex execution in progress |
 | `nd-status:blocked` | `D93F0B` | Waiting for human, external condition, or quota |
 | `nd-status:review` | `FBCA04` | Waiting for Human review |

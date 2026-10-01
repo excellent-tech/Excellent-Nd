@@ -1,5 +1,9 @@
 # 利用ガイド
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](design.md#execution-modeとflow境界)を参照してください。
+
 [简体中文](operations.zh-CN.md) | [English](operations.en.md)
 
 このガイドは、Excellent-Nd を導入・運用・停止する作業者向けの手順書です。バージョン番号の規則と現在の候補版は[バージョン方針](../skills/excellent-nd/references/version-policy.md)を参照してください。
@@ -105,22 +109,22 @@ systemd user managerは通常、そのuserのlogin session中に動作する。l
 
 ### 11. 最初の single Task E2E を実施する
 
-- **操作すること**: 新しいTask / Planは、人間がChatで明確に実行を指示した場合だけ開始する。`@excellent-nd` は任意の明示記法であり必須構文ではない。複数Task Planを一括で実行指示した場合、事前定義された後続Taskは依存関係と既存gate成立後のPlan reconciliationで継続でき、人間にIssue番号やrouting操作を要求しない。
+- **操作すること**: 現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskを実行する。この明示指定自体を人間の実行指示として扱い、別個の承認フレーズは要求しない。
 - **コマンド / UI 操作**: `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人間レビュー` を通す。
 - **確認する結果**: 変更・検証・PRを追跡でき、review遷移と同時にrouting labelが外れる。
 - **OK の場合**: 通常運用へ進む。
 - **NG の場合**: runtime log、Workpad、diff、検証、PRを確認し、解消まで追加Taskを配信しない。
-Skill の導入だけでは実行環境の導入は完了しない。未導入ホストの bootstrap は、人間の明確な実行指示とIssue永続化後に人間が明示的に開始する限定例外であり、通常タスクの手動実行経路ではない。
+Skill の導入だけでは実行環境の導入は完了しない。未導入ホストの bootstrap は、現在のuser messageで `@excellent-nd` を明示し、Issue 永続化した後に人間が明示的に開始する限定例外であり、通常タスクの手動実行経路ではない。
 
 ## 運用 / よくある質問
 
 ### Q. `@excellent-nd` はいつ付けますか？
 
-A. 必須ではありません。新しいTask / Planを実行する意思を明確にしたい場合の任意記法です。「この計画で進めて」「実行して」等の明確な自然言語指示も同じ扱いです。Skillの自動選択や単なる計画・相談は実行指示とは扱いません。Plan全体を一度実行指示した後は、`dispatch_scope=plan` の事前定義後続Taskごとに `@excellent-nd` を繰り返す必要はありません。
+A. Codex dispatchを要求する現在のuser messageに毎回明示します（大文字・小文字は区別しません）。この `@excellent-nd` 指定自体を人間の実行指示として扱うため、別個の承認フレーズは不要です。Skillが自動選択された場合は実行指示とは扱わず、ChatGPT内の計画・調査・安全なGitHub操作までとし、`symphony-ready`を追加・復元しません。
 
 ### Q. 計画だけを作り、実行へ routing しないことはできますか？
 
-A. できます。相談・計画だけを依頼した場合は、計画、タスク分割、担当者、概算負荷、実行先候補まで整理し、実行routingは行いません。逆に「この計画で進めて」のように実行意図が明確なら、`@excellent-nd` がなくても実行指示として扱います。
+A. できます。`@excellent-nd` を明示せずに依頼した場合は、計画、タスク分割、担当者、概算負荷、実行先候補まで整理し、実行routingは行いません。
 
 ### Q. 通常の流れは何ですか？
 
@@ -148,7 +152,7 @@ A. 要件、優先順位、人間の判断は Chat、永続的な判断と block
 
 ### Q. blocked と resume はどう扱いますか？
 
-A. 理由、根拠、質問を Workpad へ保存し、`workflow_status` と可視化ラベルを blocked に更新して配信を止めます。回答後は決定を Issue へ保存し、原則として同じ Issue と Codex thread を再開します。
+A. 理由、根拠、質問を Workpad へ保存し、`workflow_status` とconfigured status representationを blocked に更新して配信を止めます。回答はIssueへ保存しますが、回答だけではroutingを復元しません。現在のmessageの `@excellent-nd` とconfigured gates PASSを確認してresumeし、同じIssue / threadを優先します。別個のHuman GOは不要です。
 
 ### Q. 同じタスクの continuation と別タスクの境界は何ですか？
 
@@ -196,14 +200,14 @@ systemctl --user start 'excellent-nd@<repository-instance>.service'
 
 observerはSymphonyの同一process treeでobservable eventを監視します。Issue contextを持つ利用枠超過、長時間rate limit、turn timeout、App Server起動失敗、agent abnormal exitだけを、秘密情報と非公開pathを除去してWorkpadへ保存します。category、error、occurred_at、取得可能なreset / retryとsession / attempt、checkpoint取得可否、残作業、再開条件を記録します。短周期retryはSymphonyへ委ね、commentを作りません。Issue番号や正確なerrorがeventにない場合は推測せず、取得不能とします。
 
-中断時はIssue bodyの `workflow_status=blocked`、`nd-status:blocked`、`symphony-ready`削除を同じIssue更新で行います。review遷移でもrouting labelを同時に外します。人間判断が必要なら `human_gate=required` として回答まで停止し、回答そのものを再開指示として扱います。外部要因blockedで `dispatch_scope=plan` / `human_gate=clear` を維持できる場合は、条件解消を検証した後のPlan reconciliationで再開できます。
+中断時はIssue bodyの `workflow_status=blocked`、`nd-status:blocked`、`symphony-ready`削除を同じIssue更新で行います。review遷移でもrouting labelを同時に外します。再開は現在のuser messageで `@excellent-nd` の明示指定を再確認してから行います。別個の承認フレーズは要求しません。
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --human-instruction
+  --reason "resume condition verified" --explicit-mention
 ```
 
-決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。既承認Planの後続Taskをdependency完了後に継続する場合は、内部的には `--plan-continuation --plan-ref PLAN_REF` を使用でき、ユーザーにIssue番号やCLI操作を要求しません。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
+決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
 
 ## 複数作業マシンの登録・削除
 

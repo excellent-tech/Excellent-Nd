@@ -1,5 +1,9 @@
 # Excellent-Nd
 
+A case-insensitive `@excellent-nd` in the current user message selects delegation from ChatGPT to Excellent-Nd → Issue → Symphony → Codex. It is an execution-mode selector and itself the human execution instruction; no separate Human GO phrase is required. Tagless natural language, Skill auto-selection, an existing Issue, or Plan metadata alone never authorizes new dispatch / resume.
+
+See the [authoritative flow and continuation boundaries](docs/design.md#execution-modeとflow境界).
+
 Excellent-Nd is an open-source **AI-driven development workflow** that puts ChatGPT at the center of planning and decisions, then connects GitHub Issues, [OpenAI Symphony](https://github.com/openai/symphony), and Codex to execute development Tasks. It follows a conversation-first, Plan-and-Execute model and provides the excellent-nd Skill as its ChatGPT-side operating interface.
 
 > The first normal single-Task E2E has been demonstrated. The project is in the beta / development series toward the 1.0 stable release; Result import, continuation, and multi-Task scenarios remain under validation.
@@ -10,7 +14,7 @@ Excellent-Nd is an open-source **AI-driven development workflow** that puts Chat
 
 In small teams and near-individual development, the same people often handle requirements, planning, task assignment, implementation, and verification. Manually creating and maintaining an Issue for every small task can itself become management overhead.
 
-Excellent-Nd uses ChatGPT as the primary UI for requirements, planning, task assignment, execution instructions, and result review. A clear conversational instruction such as “proceed with this plan” authorizes execution; `@excellent-nd` is an optional explicit notation, not required syntax. When a multi-Task Plan is authorized, its predefined successors inherit Plan-scoped execution authority and can continue during later Plan reconciliation after dependencies and repository gates are satisfied. Humans do not need to treat Issue management as the primary UI.
+Excellent-Nd uses ChatGPT as the primary UI for requirements, planning, task assignment, explicit execution instructions, and result review. When the current user message explicitly names `@excellent-nd`, that mention itself is the human execution instruction; executable Tasks are persisted as GitHub Issues and handed to Symphony / Codex. Humans do not need to treat Issue management as the primary UI; they pull only the results they need back into ChatGPT.
 
 Instead of passing the full chat history to Codex, each Task carries a compact Execution Packet containing its objective, constraints, acceptance criteria, relevant decisions, and references. Results are also kept structured rather than returning the full Codex log.
 
@@ -18,7 +22,7 @@ Instead of passing the full chat history to Codex, each Task carries a compact E
 
 ```text
 Human + ChatGPT
-  requirements → Plan → task split / assignment → clear conversational execution instruction
+  requirements → Plan → task split / assignment → explicit `@excellent-nd` instruction
                                            ↓
 GitHub Issues
   Execution Packet / routing per Task
@@ -61,9 +65,9 @@ This means the human-facing UX is conversation-first while the internal executio
 
 1.0.x focuses on this path:
 
-> Create a Plan in ChatGPT → split it into 1..N Tasks and assign owners → give a clear conversational execution instruction → persist one GitHub Issue per Task → execute through Symphony / Codex → persist results in GitHub → human asks ChatGPT to pull in the results → ChatGPT reconciles the Plan and advances dependency-ready authorized successors behind the scenes
+> Create a Plan in ChatGPT → split it into 1..N Tasks and assign owners → explicitly name `@excellent-nd` in the user message that requests execution → create one GitHub Issue per Task → execute through Symphony / Codex → persist results in GitHub → human asks ChatGPT to pull in the results → ChatGPT merges them back into the original Plan
 
-The bootstrap Task that installs the Symphony runtime on the first execution host—or on a later host that cannot be provisioned through the existing path—is a limited exception. After a clear human execution instruction, its objective, acceptance criteria, and verification method are recorded in a GitHub Issue, and a human explicitly starts it through Codex CLI or an equivalent tool on the target host. The measured version set and verification results are then saved to the Issue. After runtime validation, work moves to normal Issue-first execution; this exception is not a general manual execution path.
+The bootstrap Task that installs the Symphony runtime on the first execution host—or on a later host that cannot be provisioned through the existing path—is a limited exception. After the current user message explicitly names `@excellent-nd`, its objective, acceptance criteria, and verification method are recorded in a GitHub Issue, and a human explicitly starts it through Codex CLI or an equivalent tool on the target host. The measured version set and verification results are then saved to the Issue. After runtime validation, work moves to normal Issue-first execution; this exception is not a general manual execution path.
 
 1.0.x does not implement custom push notifications into ChatGPT, a custom Codex Runner, custom database, custom scheduler, custom Kanban, large Web UI, multi-agent orchestration, multiple AI providers, SaaS, or multi-tenancy.
 
@@ -72,7 +76,7 @@ See [Design](docs/design.md), [1.0.x Scope](docs/v1-scope.md), and [Open Questio
 
 ## ChatGPT Skill
 
-The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, human execution instructions, Plan-scoped continuation authority, Issue creation, Task control and correlation metadata, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
+The shared ChatGPT workflow is managed under [skills/excellent-nd](skills/excellent-nd/). The Skill standardizes Plan splitting, explicit `@excellent-nd` execution instructions, Issue creation, Task control and correlation metadata, result import, Human Gate handling, and host migration rules. It does not add a new communication infrastructure.
 
 Installing the Skill **only enables the ChatGPT-side operating rules**. It does not mean that the Symphony / Codex runtime has been installed or configured, or that 1.0.x end-to-end validation has completed. 1.0.x execution separately requires working Symphony, Codex, and GitHub integration on an execution host.
 
@@ -81,7 +85,7 @@ Installing the Skill **only enables the ChatGPT-side operating rules**. It does 
 | Component | Responsibility |
 | --- | --- |
 | Excellent-Nd | OSS project / AI-driven development workflow |
-| excellent-nd Skill | ChatGPT-side planning, human execution instructions, Plan continuation, and operating interface |
+| excellent-nd Skill | ChatGPT-side planning, explicit `@excellent-nd` execution instruction, and operating interface |
 | GitHub | Durable Tasks, Execution Packets, checkpoints, PR / Results |
 | Symphony | Issue-first execution orchestration |
 | Codex | Task execution worker |
