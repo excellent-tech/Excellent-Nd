@@ -34,6 +34,7 @@ MARKER_FILENAME = ".excellent-nd/runtime-transition.json"
 TRANSITION_PREFIX = "EXCELLENT_ND_TRANSITION="
 TRANSITION_SCHEMA = "excellent-nd/runtime-transition@v1"
 RECEIPT_SCHEMA = "excellent-nd/runtime-transition-receipt@v1"
+TASK_SCHEMA = "excellent-nd/task@v1"
 WORKER_START = re.compile(
     r"\bStarting worker attempt for issue_id=\S+ issue_identifier=GH-(\d+)\b"
 )
@@ -342,6 +343,68 @@ def set_workflow_status(body, status):
     return updated
 
 
+def set_human_gate(body, value):
+    updated, count = re.subn(
+        r'("human_gate"\s*:\s*")[^"]+(")', rf"\g<1>{value}\2", body
+    )
+    if count > 1:
+        raise ValueError("Issue body must contain at most one human_gate field")
+    return updated
+
+
+def task_control_metadata(body):
+    candidates = []
+    for match in re.finditer(r"\x60\x60\x60json\s*(\{.*?\})\s*\x60\x60\x60", body, re.S):
+        try:
+            value = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict) and value.get("schema") == TASK_SCHEMA:
+            candidates.append(value)
+    if len(candidates) != 1:
+        raise ValueError("Issue body must contain exactly one excellent-nd/task@v1 metadata block")
+    return candidates[0]
+
+
+def dependency_issue_numbers(metadata, repo):
+    dependencies = metadata.get("dependencies")
+    if not isinstance(dependencies, list) or not dependencies:
+        raise ValueError("plan continuation requires at least one durable dependency")
+    pattern = re.compile(
+        rf"^https://github\.com/{re.escape(repo)}/issues/(\d+)$"
+    )
+    numbers = []
+    for dependency in dependencies:
+        if not isinstance(dependency, str):
+            raise ValueError("plan continuation dependency is invalid")
+        match = pattern.fullmatch(dependency)
+        if not match:
+            raise ValueError(
+                "plan continuation requires same-repository GitHub Issue dependency URLs"
+            )
+        numbers.append(int(match.group(1)))
+    return numbers
+
+
+def validate_plan_continuation_issue(issue, repo, plan_ref, fetch_issue):
+    if issue.get("state") != "open":
+        raise ValueError("plan continuation requires an open Task Issue")
+    metadata = task_control_metadata(issue.get("body") or "")
+    if metadata.get("dispatch_scope", "task") != "plan":
+        raise ValueError("Task is not authorized for Plan continuation")
+    if metadata.get("human_gate", "clear") != "clear":
+        raise ValueError("Task requires a fresh human decision before continuation")
+    if metadata.get("plan_ref") != plan_ref:
+        raise ValueError("Plan continuation reference does not match Task metadata")
+    if metadata.get("workflow_status") not in ("blocked", "scheduled"):
+        raise ValueError("Task workflow state is not eligible for Plan continuation")
+    for number in dependency_issue_numbers(metadata, repo):
+        dependency = fetch_issue(number)
+        if dependency.get("state") != "closed":
+            raise ValueError(f"dependency Issue #{number} is not closed")
+    return metadata
+
+
 def next_labels(labels, status, config):
     route = routing_name(config)
     if status_authority(config) == "github-project":
@@ -398,7 +461,23 @@ class GitHub:
             detail = error.read().decode(errors="replace")
             raise RuntimeError(f"GitHub API {error.code}: {sanitize(detail)}") from error
 
-    def transition(self, number, status, comment, block_kind="external"):
+    def validate_plan_continuation(self, number, plan_ref):
+        issue = self.request("GET", f"/issues/{number}")
+        return validate_plan_continuation_issue(
+            issue,
+            self.repo,
+            plan_ref,
+            lambda dependency_number: self.request("GET", f"/issues/{dependency_number}"),
+        )
+
+    def transition(
+        self,
+        number,
+        status,
+        comment,
+        block_kind="external",
+        clear_human_gate=False,
+    ):
         if status == "scheduled" and dispatch_gates(self.config):
             check = repository_preflight(self.repo, number, self.config)
             if check["result"] != "PASS":
@@ -417,14 +496,17 @@ class GitHub:
         self.request("PATCH", f"/issues/{number}", {"labels": safe_labels})
 
         try:
+            updated_body = set_workflow_status(
+                issue["body"], "blocked" if status == "failed" else status
+            )
+            if status == "blocked" and block_kind == "decision":
+                updated_body = set_human_gate(updated_body, "required")
+            elif status == "scheduled" and clear_human_gate:
+                updated_body = set_human_gate(updated_body, "clear")
             self.request(
                 "PATCH",
                 f"/issues/{number}",
-                {
-                    "body": set_workflow_status(
-                        issue["body"], "blocked" if status == "failed" else status
-                    ),
-                },
+                {"body": updated_body},
             )
             if status_authority(self.config) == "github-project":
                 event = runtime_event_for(status, block_kind)
@@ -695,7 +777,7 @@ def interruption_workpad(category, line, context):
 - attempt: `{shown(context["attempt"])}`
 - last checkpoint (branch / commit / PR): 取得不能（runtime event に非搭載）。既存 Workpad / PR を確認する。
 - remaining work: interruption 発生時点の Acceptance criteria 未完了項目を確認する。
-- recommended resume condition: repository-native gatesを満たした後、現在の user message で明示的な `@excellent-nd` を確認する。この明示指定自体を人間の実行指示として扱い、別個の承認フレーズは要求しない。
+- recommended resume condition: repository-native gatesを満たした後、Taskの `dispatch_scope` / `human_gate` を確認する。Plan継続が許可されhuman gateがclearなら後続Chat reconciliationで継続できる。human decisionが必要な場合だけ新しい人間指示を要求する。特別な承認フレーズは要求しない。
 
 Error text is sanitized. Raw logs and credentials are not copied here.
 """
@@ -804,7 +886,14 @@ def main(argv=None):
     resume.add_argument("--repo", required=True)
     resume.add_argument("--issue", type=int, required=True)
     resume.add_argument("--reason", required=True)
-    resume.add_argument("--explicit-mention", action="store_true")
+    resume.add_argument("--human-instruction", action="store_true")
+    resume.add_argument(
+        "--explicit-mention",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    resume.add_argument("--plan-continuation", action="store_true")
+    resume.add_argument("--plan-ref")
     add_repository_config_argument(resume)
 
     state = sub.add_parser("state")
@@ -847,8 +936,14 @@ def main(argv=None):
             return 75
         return 0
 
-    if args.command == "resume" and not args.explicit_mention:
-        parser.error("resume requires --explicit-mention")
+    if args.command == "resume":
+        human_instruction = args.human_instruction or args.explicit_mention
+        if human_instruction and args.plan_continuation:
+            parser.error("resume authorization modes are mutually exclusive")
+        if not human_instruction and not args.plan_continuation:
+            parser.error("resume requires --human-instruction or --plan-continuation")
+        if args.plan_continuation and not args.plan_ref:
+            parser.error("--plan-continuation requires --plan-ref")
 
     config = read_config(args.repository_config)
     github = GitHub(args.repo, config)
@@ -862,10 +957,17 @@ def main(argv=None):
             receipt_dir,
         ) in ("applied", "duplicate", "blocked") else 1
     if args.command == "resume":
+        human_instruction = args.human_instruction or args.explicit_mention
+        if args.plan_continuation:
+            github.validate_plan_continuation(args.issue, args.plan_ref)
         github.transition(
             args.issue,
             "scheduled",
-            decision_comment("Resume decision", args.reason),
+            decision_comment(
+                "Resume decision" if human_instruction else "Plan continuation",
+                args.reason,
+            ),
+            clear_human_gate=human_instruction,
         )
     else:
         github.transition(
