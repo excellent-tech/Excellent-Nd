@@ -39,6 +39,9 @@ validated stableとは別に、新しいstable release、nightly、development v
 8. Issue Task control / correlation metadata互換性
 9. account usage / rate-limit handling
 10. process restart / recovery
+11. Plan-level execution authorization and dependency-driven successor continuation
+12. legacy / per-Task authorization fail-closed behavior
+13. human-decision gate prevents silent continuation
 
 合格後に、実際に検証したexact version setをvalidated stableへ昇格する。可能なら旧validated setをrollback候補として保持する。
 
