@@ -200,10 +200,10 @@ observerはSymphonyの同一process treeでobservable eventを監視します。
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --explicit-mention
+  --reason "resume condition verified" --human-instruction
 ```
 
-決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
+決定理由をWorkpadへ保存し、`scheduled`、`nd-status:scheduled`、routing labelを復元します。既承認Planの後続Taskをdependency完了後に継続する場合は、内部的には `--plan-continuation --plan-ref PLAN_REF` を使用でき、ユーザーにIssue番号やCLI操作を要求しません。同一Issue / threadを優先し、無条件の自動再dispatchは行いません。
 
 ## 複数作業マシンの登録・削除
 
