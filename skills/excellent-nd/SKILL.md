@@ -136,7 +136,7 @@ Symphonyへ委ねる:
 
 ## Bootstrap prerequisite
 
-最初のhostにSymphonyがなく通常経路を利用できない場合、現在のuser messageで `@excellent-nd` が明示された後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
+最初のhostにSymphonyがなく通常経路を利用できない場合、人間がChatで明確にbootstrap実行を指示した後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。`@excellent-nd` は任意の明示記法である。
 
 bootstrap前提:
 
