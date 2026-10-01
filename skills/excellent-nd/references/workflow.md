@@ -1,5 +1,9 @@
 # Workflow conventions
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界](../SKILL.md#明示的な実行指示)を参照してください。
+
 ## 人間向け状態
 
 1.0.xでは次の4つのactive workflow stateを使う。

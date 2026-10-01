@@ -2,6 +2,20 @@
 
 本書は Excellent-Nd の設計判断の正本である。Symphony に関する事実は 2026-09-18 時点の OpenAI 公式リポジトリ `be10a1b79df723d6d7612b5651c8522704dafb2e` を確認した。未確定事項は [open-questions.md](open-questions.md) に分離する。
 
+## Execution ModeとFlow境界
+
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応ではなくExcellent-Nd → GitHub Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示である。別個のHuman GO、Approved、Yes、OKは不要。タグなしではChatGPT自身が依頼に対応できるが、新しいEN dispatch / resumeは行わない。Skill自動選択、既存Issue、過去のPlan承認、metadataから現在の実行指示を作り出さない。
+
+人間の主UIはChatGPTである。IssueはDurable Task / Execution Packet、routing、prompt transport、state、checkpoint、Workpad、verification、evidence、result ingestion、branch / PR correlationの内部媒体であり、人間へ通常操作としてIssue番号、routing label、Project Field、internal resume commandを要求しない。
+
+Flowは `Chat direct-request`、`Chat direct-request + Excellent-Nd transport`、`legacy issue-driven` を区別する。ENがIssueを作成し、後続ChatがそのIssueを参照・resumeしても、元のChat direct-requestをlegacyへ再分類しない。legacyは人間が既存Issueそのものを作業契約として明示した場合だけ適用する。legacyのProject readiness / Agent / Human Approval / Assignee / Claim / Type-specific DoRをENへ無条件に追加しない。repository-local dispatch gatesとScope、Dependency、Resource Lock、正本、branch / worktree / PR conflict、validation、実質Human Gateは維持する。
+
+同一Taskの承認済みScope内のcontinuationはSymphony / Codexの同一threadを優先し、turnごとに新しいChat指示を要求しない。blocked後のHuman Decision回答はIssueに保存するが、それ自体でroutingを復元しない。新しいEN実行要求・新Scope / Task・人間判断後のresumeには、現在のChat指示と明示タグを確認する。Issue schema / Execution Contextはrouting / correlation / state / evidence用であり、追加authorization gateではない。
+
+結果取り込みはWorkpad / PR / verificationを元Planへ再統合する操作であり、それだけで後続Taskをroutingしない。1回のタグ付き指示で複数の既定Taskをどこまで自動継続できるかは未確定であり、Plan認可schemaや自動後続routingを新設しない。人間へIssueごとの操作を要求するモデルにも戻さない。
+
+Draft PRは人間Review / Mergeへ引き渡す。AIだけでPR merge、Issue close、final completionを行わない。runtimeのmarker、observer、receipt、workspace preservationと正式state transition経路はこの境界修正で変更しない。
+
 ## 背景と課題
 
 ChatGPT 上の相談は、要求整理、選択肢比較、Plan 作成、人間判断を一つの会話文脈で進めやすい。一方、小人数開発で人間がすべての作業を手作業で Issue 化・更新すると、管理自体が負担になりうる。
@@ -277,7 +291,7 @@ ChatGPT は GitHub から Plan に紐づく各 Task / PR / verification を取�
 
 Symphony execution controlの正本はGitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。routing labelは `symphony-ready`、可視化用は `nd-status:scheduled|running|blocked|review|failed` とする。
 
-人間判断が必要になったTaskはIssue Workpadにblocked理由・根拠・質問を保存し、`workflow_status` を `blocked` に更新してexecution-control条件を外す。execution-target identityは変更しない。人間回答を保存した後、`workflow_status` を `scheduled` に戻してexecution controlを再度有効化し、原則として同じCodex threadのcontinuationを試みる。
+人間判断が必要になったTaskはIssue Workpadにblocked理由・根拠・質問を保存し、`workflow_status` を `blocked` に更新してexecution-control条件を外す。execution-target identityは変更しない。人間回答を保存するだけではroutingを復元しない。現在のuser messageの `@excellent-nd` とconfigured gates PASSを確認した後、`workflow_status` を `scheduled` に戻してexecution controlを再度有効化し、原則として同じCodex threadのcontinuationを試みる。
 
 ```text
 Task → 保留
@@ -285,6 +299,7 @@ Task → 保留
      → ChatGPT で状況取得
      → Human decision
      → Issue に回答を保存
+     → 現在のmessageの @excellent-nd とconfigured gates確認
      → 実行予定へ戻す
      → same Task continuation
 ```

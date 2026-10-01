@@ -1,5 +1,9 @@
 # 使用指南
 
+当前user message中的 `@excellent-nd`（不区分大小写）是Execution Mode selector，表示由ChatGPT转为委托Excellent-Nd → Issue → Symphony → Codex执行。它本身就是人工执行指令，无需额外Human GO。无标签的自然语言、Skill自动选择、现有Issue或Plan metadata本身均不授权新的dispatch / resume。
+
+参阅[Flow与continuation边界正本](design.md#execution-modeとflow境界)。
+
 [日本語（规范原文）](operations.md) | [English](operations.en.md)
 
 本指南面向安装、运行和停用 Excellent-Nd 的操作者。版本编号规则和当前候选版本请参阅[版本方针](../skills/excellent-nd/references/version-policy.md)。
@@ -146,7 +150,7 @@ A. 需求、优先级和人的判断写入 Chat；持久决策和阻塞项写入
 
 ### Q. 如何处理 blocked 与 resume？
 
-A. 把原因、依据和问题保存到 Workpad，将状态更新为 blocked 并停止派发。回答后把决定保存到 Issue，原则上继续同一 Issue 和 Codex thread。
+A. 把原因、依据和问题保存到 Workpad，将状态更新为 blocked 并停止派发。保存人工回答本身不恢复routing。只有当前message明确指定 `@excellent-nd` 且configured gates全部PASS后才resume，优先使用同一Issue / Codex thread。无需额外Human GO。
 
 ### Q. 何时继续同一任务？
 

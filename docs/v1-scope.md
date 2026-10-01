@@ -1,5 +1,9 @@
 # 1.0.x スコープ
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](design.md#execution-modeとflow境界)を参照してください。
+
 ## 1.0.x の目的
 
 1.0.x は、ChatGPT を主 UI としながら、内部では GitHub Issue + Symphony + Codex を利用して、1 つの Plan から 1 件以上の Task を安全に並列実行できることを確認する。

@@ -90,6 +90,14 @@ dispatch前に対象repositoryのrepository configとtarget台帳を確認し、
 
 現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、別個の承認フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
 
+`@excellent-nd` はcase-insensitiveなExecution Mode selectorであり、単なるapproval phraseではない。タグなしの依頼にはChatGPT自身が対応できるが、自然言語だけでEN / Symphony / Codexへ新しいdispatch / resumeを行わない。過去のPlan承認、既存Issue、Task metadataから現在の人間の実行指示を作り出さない。
+
+人間の主UIはChatGPT。IssueはDurable Task / Execution Packet、routing、prompt transport、state、checkpoint、Workpad、verification、evidence、result ingestion、branch / PR correlationの内部媒体であり、通常操作としてIssue番号・routing label・Project Field・internal resume commandを人間へ要求しない。
+
+`Chat direct-request`、`Chat direct-request + Excellent-Nd transport`、`legacy issue-driven` を区別する。ENによるIssue作成、後続Chatからの参照・resumeだけでlegacyへ再分類しない。legacyは人間が既存Issueそのものを作業契約として明示した場合だけ使い、そのProject readiness / Agent / Human Approval / Assignee / Claim / Type-specific DoRをENへ無条件に追加しない。
+
+同一Taskの承認済みScope内のSymphony / Codex thread continuationはturnごとの新タグを要求しない。新しいEN実行要求・新Scope / Task・Human Decision後のresumeは現在のChat指示と明示タグを確認する。回答保存だけではroutingを復元しない。schema / Execution Contextはrouting / correlation / state / evidence用であり、追加authorization gateではない。
+
 Task Issueには:
 
 - Objective
@@ -105,7 +113,7 @@ routing/status表現を固定値で仮定せず、対象repositoryの `.excellen
 
 ## Execute
 
-通常Taskはrepository configで定義されたrouting labelとtarget-specific labelの両方を持ち、設定済みのgeneric dispatch gatesがすべてPASSした場合だけ対象hostへdispatchする。repository-native DoR / dependency / lock / claimは置換しない。必要データ取得不能・paginationで完全性を証明できない・Project item 0件/複数件・UNKNOWNはSTOPとする。
+通常Taskはrepository configで定義されたrouting labelとtarget-specific labelの両方を持ち、設定済みのgeneric dispatch gatesがすべてPASSした場合だけ対象hostへdispatchする。Scope / dependency / Resource Lock / Repository正本 / branch・worktree・PR conflict / validation / 実質Human Gateは維持する。legacy DoR / claimやProject item必須は無条件に追加しない。必要データ取得不能・paginationで完全性を証明できない・UNKNOWNはSTOPとする。Project item 0件/複数件は、そのProject情報を設定済みgate / status integrationが必要とする場合だけSTOPとする。
 
 WORKFLOWは必ず `{{ issue.description }}` または同等手段でIssue body全体をCodex initial promptへ渡す。
 
@@ -151,6 +159,8 @@ review状態にはPRまたは同等のreview可能な参照とverificationを持
 
 reviewへ遷移する同じdecision stepでrepository configのrouting labelを外す。
 
+AIだけでPR merge、Issue close、final completionを行わない。人間Review / Mergeへ引き渡す。
+
 ## 結果取り込み
 
 ユーザーが結果取得を指示したら:
@@ -160,6 +170,8 @@ reviewへ遷移する同じdecision stepでrepository configのrouting labelを�
 3. Task別に進捗・blocker・riskを要約する
 4. 元Planへ再統合する
 5. 必要がなければraw log全文を取り込まない
+
+結果取り込みだけでは後続Taskをroutingしない。1回のタグ付き指示で複数の既定Taskをどこまで自動継続できるかは未確定であり、新しいPlan authorization schemaを作らず未決として報告する。
 
 ## Checkpoint
 

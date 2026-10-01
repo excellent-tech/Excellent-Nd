@@ -1,5 +1,9 @@
 # Excellent-Nd 运行时架构指南
 
+当前user message中的 `@excellent-nd`（不区分大小写）是Execution Mode selector，表示由ChatGPT转为委托Excellent-Nd → Issue → Symphony → Codex执行。它本身就是人工执行指令，无需额外Human GO。无标签的自然语言、Skill自动选择、现有Issue或Plan metadata本身均不授权新的dispatch / resume。
+
+参阅[Flow与continuation边界正本](design.md#execution-modeとflow境界)。
+
 [日本語（规范原文）](runtime-architecture.md) | [English](runtime-architecture.en.md)
 
 本文面向第一次接触 GitHub Issue、OpenAI Symphony 和 Codex App Server 的读者，目标是说明 Excellent-Nd 内部“发生了什么、按什么顺序发生、由哪些源码负责”。

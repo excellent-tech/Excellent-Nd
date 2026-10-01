@@ -1,5 +1,9 @@
 # 利用ガイド
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](design.md#execution-modeとflow境界)を参照してください。
+
 [简体中文](operations.zh-CN.md) | [English](operations.en.md)
 
 このガイドは、Excellent-Nd を導入・運用・停止する作業者向けの手順書です。バージョン番号の規則と現在の候補版は[バージョン方針](../skills/excellent-nd/references/version-policy.md)を参照してください。
@@ -148,7 +152,7 @@ A. 要件、優先順位、人間の判断は Chat、永続的な判断と block
 
 ### Q. blocked と resume はどう扱いますか？
 
-A. 理由、根拠、質問を Workpad へ保存し、`workflow_status` と可視化ラベルを blocked に更新して配信を止めます。回答後は決定を Issue へ保存し、原則として同じ Issue と Codex thread を再開します。
+A. 理由、根拠、質問を Workpad へ保存し、`workflow_status` とconfigured status representationを blocked に更新して配信を止めます。回答はIssueへ保存しますが、回答だけではroutingを復元しません。現在のmessageの `@excellent-nd` とconfigured gates PASSを確認してresumeし、同じIssue / threadを優先します。別個のHuman GOは不要です。
 
 ### Q. 同じタスクの continuation と別タスクの境界は何ですか？
 

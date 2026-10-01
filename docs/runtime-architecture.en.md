@@ -1,5 +1,9 @@
 # Excellent-Nd Runtime Architecture Guide
 
+A case-insensitive `@excellent-nd` in the current user message selects delegation from ChatGPT to Excellent-Nd → Issue → Symphony → Codex. It is an execution-mode selector and itself the human execution instruction; no separate Human GO phrase is required. Tagless natural language, Skill auto-selection, an existing Issue, or Plan metadata alone never authorizes new dispatch / resume.
+
+See the [authoritative flow and continuation boundaries](design.md#execution-modeとflow境界).
+
 [日本語 (authoritative)](runtime-architecture.md) | [简体中文](runtime-architecture.zh-CN.md)
 
 This guide explains Excellent-Nd for readers who are new to GitHub Issues, OpenAI Symphony, and Codex App Server. Its goal is to make it possible to trace what happens, in what order, and which source code is responsible.

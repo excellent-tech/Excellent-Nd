@@ -1,5 +1,9 @@
 # User Guide
 
+A case-insensitive `@excellent-nd` in the current user message selects delegation from ChatGPT to Excellent-Nd → Issue → Symphony → Codex. It is an execution-mode selector and itself the human execution instruction; no separate Human GO phrase is required. Tagless natural language, Skill auto-selection, an existing Issue, or Plan metadata alone never authorizes new dispatch / resume.
+
+See the [authoritative flow and continuation boundaries](design.md#execution-modeとflow境界).
+
 [日本語 (authoritative)](operations.md) | [简体中文](operations.zh-CN.md)
 
 This guide is for operators installing, running, and disabling Excellent-Nd. See the [version policy](../skills/excellent-nd/references/version-policy.md) for numbering rules and the current candidate.
@@ -114,7 +118,7 @@ Installing the Skill does not install the runtime. Bootstrap on an unprepared ho
 
 ### Q. When should I use `@excellent-nd`?
 
-A. Use it in a new conversation or when the Skill is not selected automatically. Once active, it need not prefix every message.
+A. Include it in the current user message requesting new EN dispatch or resume (case-insensitive). It selects Codex delegation, not just approval; no additional approval phrase is needed. Skill auto-selection does not authorize dispatch. Existing same-Task Symphony / Codex continuation within the authorized scope does not require a new tag per turn.
 
 ### Q. Can I create only a Plan without routing work?
 
@@ -146,7 +150,7 @@ A. Put requirements, priorities, and human decisions in Chat; durable decisions 
 
 ### Q. How do blocked and resume work?
 
-A. Save the reason, evidence, and question in the Workpad; update status to blocked; and stop dispatch. After an answer, save the decision and normally resume the same Issue and Codex thread.
+A. Save the reason, evidence, and question in the Workpad; update status to blocked; and stop dispatch. Save the human answer without restoring routing. Resume only after the current message explicitly names `@excellent-nd` and configured gates pass; prefer the same Issue and Codex thread. No separate Human GO phrase is required.
 
 ### Q. When is work a same-Task continuation?
 

@@ -1,5 +1,9 @@
 # Repository / Issue integration
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界](../SKILL.md#明示的な実行指示)を参照してください。
+
 Excellent-Nd導入のLevel 2。execution host setupより先に、対象repositoryの既存Issue運用とExcellent-Ndのsemantic rolesを整合させる。
 
 ## 目的

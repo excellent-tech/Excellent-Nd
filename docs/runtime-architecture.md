@@ -1,5 +1,9 @@
 # Excellent-Nd 内部処理ガイド
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](design.md#execution-modeとflow境界)を参照してください。
+
 [English](runtime-architecture.en.md) | [简体中文](runtime-architecture.zh-CN.md)
 
 この文書は、GitHub Issue、OpenAI Symphony、Codex App Serverを初めて扱う人が、Excellent-Ndで「何が、どの順番で、どのコードによって起きるか」を追えるようにするための入門兼内部設計ガイドです。

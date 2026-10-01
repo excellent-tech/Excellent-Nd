@@ -1,5 +1,9 @@
 # Excellent-Nd
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](docs/design.md#execution-modeとflow境界)を参照してください。
+
 Excellent-Nd は、ChatGPT を計画・判断の中心に置き、GitHub Issues、[OpenAI Symphony](https://github.com/openai/symphony)、Codex をつないで開発 Task を実行する、Conversation-first / Plan-and-Execute 型の オープンソース **AI駆動開発ワークフロー** です。ChatGPT 側の操作インターフェースとして excellent-nd Skill を提供します。
 
 > 最初の通常 single Task E2E は実証済みです。現在は 1.0 正式版に向けた beta / development 系列で、結果取り込み、continuation、複数タスクを引き続き検証しています。

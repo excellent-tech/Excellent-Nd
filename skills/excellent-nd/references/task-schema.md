@@ -1,5 +1,9 @@
 # Task Issue schema
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界](../SKILL.md#明示的な実行指示)を参照してください。
+
 実行対象Issueのbody全体をExecution Packetとする。人間が読めるMarkdownに実行内容を記録し、Excellent-Ndが安定して扱うTask control / correlation metadataをJSON blockで併記する。
 
 ## 人間向けセクション

@@ -1,5 +1,9 @@
 # AGENTS.md
 
+現在のuser messageのcase-insensitiveな `@excellent-nd` は、ChatGPT自身の対応からExcellent-Nd → Issue → Symphony → Codexへの委譲を選ぶExecution Mode selectorであり、それ自体が人間の実行指示です。別個のHuman GO等は不要です。タグなしの自然言語、Skill自動選択、既存Issue、Plan metadataだけでは新しいdispatch / resumeを許可しません。
+
+[Flow・continuation境界の正本](docs/design.md#execution-modeとflow境界)を参照してください。
+
 ## 目的
 
 Excellent-Nd は、OpenAI Symphony を基盤に、ChatGPT 上の Plan から、現在のuser messageで `@excellent-nd` が明示された Task を GitHub Issue として実行し、結果を元の ChatGPT 会話へ取り込む Conversation-first / Plan-and-Execute ワークフローを目指す。
