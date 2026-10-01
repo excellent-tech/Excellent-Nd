@@ -103,22 +103,22 @@ service启动时从同一user的`gh auth token`取得credential，只通过proce
 
 ### 11. 执行第一个单任务端到端验证
 
-- **操作**: 仅在当前user message明确包含 `@excellent-nd` 时执行普通Task。该明确指定本身即视为人工执行指令，不再要求额外批准语句。
+- **操作**: 仅在用户通过对话明确表达执行意图后启动新的Task / Plan。`@excellent-nd` 只是可选的显式写法，并非必需语法。若一次授权整个多Task Plan，预定义后续Task可在依赖和repository gate满足后的Plan reconciliation中继续，无需Issue级人工指令。
 - **命令 / UI 操作**: 完成 `ChatGPT → Issue → Symphony → Codex → branch / verification → PR → 人工审查`。
 - **确认结果**: 变更、验证和PR可追踪；进入review时同一decision移除routing label。
 - **OK**: 进入常规运行。
 - **NG**: 检查log、Workpad、diff、验证和PR；解决前不调度更多Task。
-只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在当前user message明确指定 `@excellent-nd` 且 Issue 持久化后由人明确启动；这是有限例外，不是常规手动执行路径。
+只安装 Skill 并不代表运行环境安装完成。未安装主机的 bootstrap 必须在收到明确的人工执行指令并持久化Issue后由人明确启动；这是有限例外，不是常规手动执行路径。
 
 ## 运行 / 常见问题
 
 ### Q. 什么时候使用 `@excellent-nd`？
 
-A. 每次请求 Codex dispatch 的当前 user message 都必须明确包含它（不区分大小写）。该 `@excellent-nd` 指定本身就是人工执行指令，不再要求额外批准语句。Skill 自动选择不等同于明确执行指令；没有该指定时，仅进行计划、调查和可由 ChatGPT 安全完成的 GitHub 操作，不添加或恢复 `symphony-ready`。
+A. 它不是必需语法，只是明确执行意图的一种可选写法。“按这个计划继续”“执行吧”等自然语言指令同样有效。Skill自动选择或单纯计划讨论不属于执行授权。多Task Plan一旦整体获授权，预定义的 `dispatch_scope=plan` 后续Task无需重复指定 `@excellent-nd`。
 
 ### Q. 可以只制定计划而不路由执行吗？
 
-A. 可以。不明确指定 `@excellent-nd` 时，可整理计划、任务拆分、负责人、估算负载和执行目标候选，但不进行执行routing。
+A. 可以。若只是计划/讨论，则整理计划、任务拆分、负责人、估算负载和执行目标候选，不进行routing；若用户明确表示“按这个计划继续”，即使没有 `@excellent-nd` 也属于执行指令。
 
 ### Q. 常规流程是什么？
 
@@ -183,7 +183,7 @@ pgrep -af 'runtime_observer.py|symphony'
 
 observer在同一Symphony process tree中跟随observable event。只有带Issue context的使用额度耗尽、长时间rate limit、turn timeout、App Server启动失败或agent abnormal exit，才会把已清理秘密和非公开path的category、error、occurred_at、可取得的reset / retry与session / attempt、checkpoint可取得性、剩余工作和恢复条件写入Workpad。短周期retry交给Symphony，不创建comment。缺少Issue编号或准确error时标为无法取得，不作推测。
 
-中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。仅在当前user message再次明确包含 `@excellent-nd` 后恢复；不要求额外批准语句。
+中断时在同一次Issue更新中设置 `workflow_status=blocked`、`nd-status:blocked` 并移除 `symphony-ready`。进入review时也在同一decision移除routing。需要人工判断时设置 `human_gate=required`，等待人工回答；该回答本身即作为继续指令。外部阻塞若保持 `dispatch_scope=plan` / `human_gate=clear`，则可在确认条件解除后的Plan reconciliation中继续。
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
