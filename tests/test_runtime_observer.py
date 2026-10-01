@@ -287,7 +287,7 @@ class ObserverTest(unittest.TestCase):
         )
 
         patch_bodies = [
-            call[2]["body"]
+            call.args[2]["body"]
             for call in github.request.call_args_list
             if call.args[0] == "PATCH"
             and call.args[2]
