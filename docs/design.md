@@ -30,7 +30,7 @@ Excellent-Nd は、ChatGPT 上の 1 つの Plan から 1 件以上の Task を�
 10. Symphony と Codex が持つ scheduler / runner / workspace / retry / thread 管理を再実装しない。
 11. ChatGPT への自動 push は 1.0.x では行わず、人間の明示的な結果取り込みを基本とする。
 12. 管理画面や状態を増やすより、人間が管理する情報量を減らす。
-13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、現在のuser messageでの `@excellent-nd` 明示とGitHub上の永続記録を維持した限定例外とする。
+13. Symphony runtime の bootstrap prerequisite は通常実行 Task と区別し、人間の明確なbootstrap実行指示とGitHub上の永続記録を維持した限定例外とする。
 
 ## 1.0.x の全体モデル
 
