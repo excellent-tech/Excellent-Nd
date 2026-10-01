@@ -28,8 +28,11 @@ from scripts.runtime_observer import (
     process_runtime_line,
     runtime_event_for,
     sanitize,
+    set_human_gate,
     set_workflow_status,
     symphony_command,
+    task_control_metadata,
+    validate_plan_continuation_issue,
     worker_started_issue,
     workspace_decision,
     SYMPHONY_ACK_FLAG,
@@ -92,9 +95,34 @@ class ObserverTest(unittest.TestCase):
     def setUp(self):
         self.config = default_config()
 
+    @staticmethod
+    def plan_task_body(
+        plan_ref="P-20261001-a1b2c3",
+        dispatch_scope="plan",
+        human_gate="clear",
+        workflow_status="blocked",
+        dependencies=None,
+    ):
+        if dependencies is None:
+            dependencies = ["https://github.com/owner/sample-app/issues/41"]
+        metadata = {
+            "schema": "excellent-nd/task@v1",
+            "plan_ref": plan_ref,
+            "task_ref": "T-002",
+            "owner": "owner-a",
+            "execution_target": "build-public-01",
+            "workflow_status": workflow_status,
+            "dispatch_scope": dispatch_scope,
+            "human_gate": human_gate,
+            "dependencies": dependencies,
+            "supersedes": None,
+            "thread_policy": "reuse-for-same-task",
+        }
+        return "## Task control\n\n\x60\x60\x60json\n" + json.dumps(metadata) + "\n\x60\x60\x60\n"
+
     @patch("scripts.runtime_observer.GitHub")
     @patch("scripts.runtime_observer.read_config", return_value=default_config())
-    def test_resume_explicit_mention_is_the_human_execution_instruction(self, _read_config, github_class):
+    def test_resume_human_instruction_authorizes_task(self, _read_config, github_class):
         github = github_class.return_value
 
         result = main([
@@ -102,17 +130,56 @@ class ObserverTest(unittest.TestCase):
             "--repo", "owner/sample-app",
             "--issue", "42",
             "--reason", "operator requested resume",
-            "--explicit-mention",
+            "--human-instruction",
         ])
 
         self.assertEqual(result, 0)
         github.transition.assert_called_once()
         args, kwargs = github.transition.call_args
         self.assertEqual(args[0:2], (42, "scheduled"))
-        self.assertEqual(kwargs, {})
+        self.assertEqual(kwargs, {"clear_human_gate": True})
+
+    @patch("scripts.runtime_observer.GitHub")
+    @patch("scripts.runtime_observer.read_config", return_value=default_config())
+    def test_resume_legacy_explicit_mention_alias_remains_supported(self, _read_config, github_class):
+        github = github_class.return_value
+
+        result = main([
+            "resume",
+            "--repo", "owner/sample-app",
+            "--issue", "42",
+            "--reason", "legacy caller",
+            "--explicit-mention",
+        ])
+
+        self.assertEqual(result, 0)
+        github.transition.assert_called_once()
+
+    @patch("scripts.runtime_observer.GitHub")
+    @patch("scripts.runtime_observer.read_config", return_value=default_config())
+    def test_resume_plan_continuation_validates_plan_before_scheduling(self, _read_config, github_class):
+        github = github_class.return_value
+
+        result = main([
+            "resume",
+            "--repo", "owner/sample-app",
+            "--issue", "42",
+            "--reason", "dependency completed",
+            "--plan-continuation",
+            "--plan-ref", "P-20261001-a1b2c3",
+        ])
+
+        self.assertEqual(result, 0)
+        github.validate_plan_continuation.assert_called_once_with(
+            42, "P-20261001-a1b2c3"
+        )
+        github.transition.assert_called_once()
+        args, kwargs = github.transition.call_args
+        self.assertEqual(args[0:2], (42, "scheduled"))
+        self.assertEqual(kwargs, {"clear_human_gate": False})
 
     @patch("scripts.runtime_observer.read_config", return_value=default_config())
-    def test_resume_rejects_missing_explicit_mention(self, _read_config):
+    def test_resume_rejects_missing_authorization(self, _read_config):
         with self.assertRaises(SystemExit):
             main([
                 "resume",
@@ -120,6 +187,84 @@ class ObserverTest(unittest.TestCase):
                 "--issue", "42",
                 "--reason", "operator requested resume",
             ])
+
+    @patch("scripts.runtime_observer.read_config", return_value=default_config())
+    def test_plan_continuation_requires_plan_ref(self, _read_config):
+        with self.assertRaises(SystemExit):
+            main([
+                "resume",
+                "--repo", "owner/sample-app",
+                "--issue", "42",
+                "--reason", "dependency completed",
+                "--plan-continuation",
+            ])
+
+    def test_plan_continuation_accepts_matching_authorized_plan_with_closed_dependencies(self):
+        body = self.plan_task_body()
+        issue = {"state": "open", "body": body}
+
+        metadata = validate_plan_continuation_issue(
+            issue,
+            "owner/sample-app",
+            "P-20261001-a1b2c3",
+            lambda _number: {"state": "closed"},
+        )
+
+        self.assertEqual(metadata["dispatch_scope"], "plan")
+        self.assertEqual(metadata["human_gate"], "clear")
+
+    def test_plan_continuation_rejects_legacy_or_per_task_metadata(self):
+        body = self.plan_task_body(dispatch_scope="task")
+        with self.assertRaisesRegex(ValueError, "not authorized for Plan continuation"):
+            validate_plan_continuation_issue(
+                {"state": "open", "body": body},
+                "owner/sample-app",
+                "P-20261001-a1b2c3",
+                lambda _number: {"state": "closed"},
+            )
+
+    def test_plan_continuation_rejects_required_human_gate(self):
+        body = self.plan_task_body(human_gate="required")
+        with self.assertRaisesRegex(ValueError, "fresh human decision"):
+            validate_plan_continuation_issue(
+                {"state": "open", "body": body},
+                "owner/sample-app",
+                "P-20261001-a1b2c3",
+                lambda _number: {"state": "closed"},
+            )
+
+    def test_plan_continuation_rejects_open_dependency(self):
+        body = self.plan_task_body()
+        with self.assertRaisesRegex(ValueError, "dependency Issue #41 is not closed"):
+            validate_plan_continuation_issue(
+                {"state": "open", "body": body},
+                "owner/sample-app",
+                "P-20261001-a1b2c3",
+                lambda _number: {"state": "open"},
+            )
+
+    def test_plan_continuation_rejects_wrong_plan(self):
+        body = self.plan_task_body()
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            validate_plan_continuation_issue(
+                {"state": "open", "body": body},
+                "owner/sample-app",
+                "P-OTHER",
+                lambda _number: {"state": "closed"},
+            )
+
+    def test_task_control_metadata_requires_exactly_one_task_block(self):
+        body = self.plan_task_body()
+        self.assertEqual(task_control_metadata(body)["task_ref"], "T-002")
+        with self.assertRaisesRegex(ValueError, "exactly one"):
+            task_control_metadata("no task metadata")
+
+    def test_human_gate_can_be_marked_required_and_cleared(self):
+        body = self.plan_task_body()
+        required = set_human_gate(body, "required")
+        self.assertEqual(task_control_metadata(required)["human_gate"], "required")
+        cleared = set_human_gate(required, "clear")
+        self.assertEqual(task_control_metadata(cleared)["human_gate"], "clear")
 
     def test_non_transient_usage_limit_is_blocking(self):
         self.assertEqual(
