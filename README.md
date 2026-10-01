@@ -10,7 +10,7 @@ Excellent-Nd は、ChatGPT を計画・判断の中心に置き、GitHub Issues�
 
 Excellent-Nd は、個人開発から小規模チームまでを主な利用イメージとします。この規模では、要求整理、Plan、担当分割、実装、検証までを同じ人が横断して扱うことも多く、ChatGPT と Codex の間で Task を機械的にコピー＆ペーストしたり、GitHub Issue へ転記・更新したりする作業自体が負担となり、情報や指示の漏れも生じます。同じ課題は、規模の大きな開発にも共通します。
 
-そこで、人間と ChatGPT が要求整理、Plan、Task 分割、担当配分を行い、人間がChatで「この計画で進めて」等の明確な実行指示を出すと、Codex が実作業を担います。`@excellent-nd` は任意の明示記法であり必須構文ではありません。複数TaskのPlan全体を実行指示した場合、そのPlanの事前定義後続Taskは依存関係と既存gateが成立した時点で、Issue単位の追加指示なしにPlan reconciliationから継続できます。Task は、目的、制約、受入条件、関連判断、参照情報を含む Execution Packet として GitHub Issue に Durable 化し、Symphony / Codex へ渡します。これにより機械的な転記を減らし、Issue、branch、commit、PR を通じて Task と成果を確認できるようにします。
+そこで、人間と ChatGPT が要求整理、Plan、Task 分割、担当配分を行い、実行時は現在のuser messageで `@excellent-nd` を明示します。この指定自体を人間の実行指示として扱い、Codex が実作業を担います。Task は、目的、制約、受入条件、関連判断、参照情報を含む Execution Packet として GitHub Issue に Durable 化し、Symphony / Codex へ渡します。これにより機械的な転記を減らし、Issue、branch、commit、PR を通じて Task と成果を確認できるようにします。
 
 結果は Codex の全文ログではなく、変更、検証、リスク、blocked、未完了事項などの構造化情報として扱います。人間は要求、優先順位、レビュー、最終判断など、人間が集中すべき部分に時間を使います。
 
@@ -20,7 +20,7 @@ Excellent-Nd は、個人開発から小規模チームまでを主な利用イ�
 
 ```text
 Human + ChatGPT
-  要求確認 → Plan → Task分割 / 担当配分 → Chatで明確な実行指示
+  要求確認 → Plan → Task分割 / 担当配分 → `@excellent-nd` の明示的な実行指示
                                          ↓
 GitHub Issues
   Taskごとの Execution Packet / routing
@@ -63,9 +63,9 @@ Excellent-Nd は、Symphony が提供する以下を再実装しません。
 
 1.0.x の中心は次の経路です。
 
-> ChatGPT で Plan を作成 → 1..N Task に分割・担当配分 → 人間がChatでPlan実行を指示 → TaskごとにGitHub IssueへDurable化 → Symphony / Codexで実行 → GitHubに結果を保存 → 人間が「結果を取り込んで」→ ChatGPTが元Planへ再統合し、dependency-readyな既承認後続Taskを裏側で継続する
+> ChatGPT で Plan を作成 → 1..N Task に分割・担当配分 → 実行するuser messageで `@excellent-nd` を明示 → Task ごとに GitHub Issue を作成 → Symphony / Codex で実行 → GitHub に結果を保存 → 人間が「結果を取り込んで」→ ChatGPT が元 Plan に再統合する
 
-最初のexecution host、および既存経路からprovisioningできない後続hostでSymphony runtimeを導入するbootstrap Taskは限定例外です。人間の明確な実行指示後にGitHub Issueへ目的・受入条件・検証方法を記録し、人間が対象host上のCodex CLI等から明示的に開始します。実測version setと検証結果をIssueへ保存してruntime検証を終えた後は通常のIssue-first executionへ移行し、この例外を一般的なmanual executionへ拡大しません。
+最初のexecution host、および既存経路からprovisioningできない後続hostでSymphony runtimeを導入するbootstrap Taskは限定例外です。現在のuser messageで `@excellent-nd` を明示した後にGitHub Issueへ目的・受入条件・検証方法を記録し、人間が対象host上のCodex CLI等から明示的に開始します。実測version setと検証結果をIssueへ保存してruntime検証を終えた後は通常のIssue-first executionへ移行し、この例外を一般的なmanual executionへ拡大しません。
 
 1.0.x では ChatGPT への独自自動 push、独自 Codex Runner、独自 DB、独自 scheduler、独自 Kanban、大型 Web UI、multi-agent、複数 AI provider、SaaS、multi-tenant 等は実装しません。
 
@@ -74,7 +74,7 @@ Excellent-Nd は、Symphony が提供する以下を再実装しません。
 
 ## ChatGPT Skill
 
-Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、人間実行指示、Plan単位の継続権限、Issue 作成、Task control / correlation metadata、結果取り込み、人間判断ゲート（Human Gate） 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
+Excellent-Nd の共通 ChatGPT workflow は [skills/excellent-nd](skills/excellent-nd/) で管理します。Skill は Plan 分割、`@excellent-nd` による明示的な実行指示、Issue 作成、Task control / correlation metadata、結果取り込み、人間判断ゲート（Human Gate） 等の手順を再利用可能にするもので、新しい通信基盤を追加するものではありません。
 
 Skill のインストールは **ChatGPT 側の操作規約を有効化するだけ**です。Symphony / Codex の実行環境をインストール・設定したことや、1.0.x の end-to-end 実装・動作確認が完了したことを意味しません。1.0.x の実行には、別途 execution host 上の Symphony / Codex / GitHub 連携が必要です。
 
@@ -83,7 +83,7 @@ Skill のインストールは **ChatGPT 側の操作規約を有効化するだ
 | Component | 責務 |
 | --- | --- |
 | Excellent-Nd | オープンソースプロジェクト / AI駆動開発ワークフロー |
-| excellent-nd Skill | ChatGPT 側の計画・人間実行指示・Plan継続・操作インターフェース |
+| excellent-nd Skill | ChatGPT 側の計画・`@excellent-nd` による明示的な実行指示・操作インターフェース |
 | GitHub | 永続タスク、Execution Packet、checkpoint、PR / 結果 |
 | Symphony | Issue-first 実行オーケストレーション |
 | Codex | タスク実行 worker |

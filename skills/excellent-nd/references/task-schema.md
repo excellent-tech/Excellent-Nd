@@ -23,17 +23,9 @@ Symphony v0.0.3のdefault promptは `issue.description` を含むが、非空の
 
 この要件によりIssue body全体がCodexへ渡るため、Objective等の説明情報をJSONへ重複コピーしない。
 
-## Dispatch authorization
+## Dispatch gate
 
-初回dispatchには現在のuser messageによる明確な人間実行指示を要求する。`@excellent-nd` は任意の明示記法であり、自然言語の明確な実行指示でもよい。Skillの自動選択、計画・相談だけでは許可しない。
-
-複数TaskのPlan全体が実行指示された場合、各Taskに `dispatch_scope: "plan"` を保存する。これにより、同じ `plan_ref` の事前定義後続TaskはDurable dependencyがterminalで、`human_gate: "clear"`、repository dispatch gates PASS、scope/target変更なしの場合に、新しい人間指示なしでPlan continuationとしてroutingできる。
-
-`dispatch_scope: "task"` はTask単位の新しい人間実行指示を要求する。fieldがないlegacy Taskもfail-closedで `task` とみなす。
-
-人間判断が必要なblockedでは `human_gate: "required"` とする。Plan authorizationを持っていてもこの状態では自動継続しない。人間の回答後に `human_gate: "clear"` へ戻す。
-
-dispatchableにする時は対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelと、同configのtarget prefixから導出したtarget labelの両方を要求する。`review` / `blocked`では同じIssue更新でconfigured routing labelを外し、target labelはcorrelation用に残してよい。label名を固定値として仮定しない。
+通常Taskのrouting labelを追加・復元する時点のuser messageに、case-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、別個の承認フレーズは要求しない。Task metadata、過去message、Skillの自動選択だけでは許可しない。dispatchableにする時は対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelと、同configのtarget prefixから導出したtarget labelの両方を要求する。`review` / `blocked`では同じIssue更新でconfigured routing labelを外し、target labelはcorrelation用に残してよい。label名を固定値として仮定しない。
 
 ## 参照規則
 
@@ -57,22 +49,11 @@ dispatchableにする時は対象repositoryの `.excellent-nd/repository.json` �
   "owner": "owner-a",
   "execution_target": "build-public-01",
   "workflow_status": "scheduled",
-  "dispatch_scope": "plan",
-  "human_gate": "clear",
   "dependencies": [],
   "supersedes": null,
   "thread_policy": "reuse-for-same-task"
 }
 ```
-
-追加control field:
-
-- `dispatch_scope: "plan"` = Plan全体への人間実行指示を、同じPlanの事前定義Taskへ継承できる
-- `dispatch_scope: "task"` = Task単位で新しい人間実行指示が必要。field欠落時の既定
-- `human_gate: "clear"` = 人間判断待ちではない
-- `human_gate: "required"` = 人間判断が必要で、Plan continuationを停止する
-
-Plan continuationを機械的に使う場合、`dependencies` は同一repositoryのGitHub Issue URLで永続化し、全Issueがclosedであることを確認する。曖昧なdependency表現は自動継続へ使わない。
 
 1.0.xの `workflow_status`:
 

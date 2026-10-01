@@ -6,7 +6,7 @@
 
 | 表示 | Machine value | 意味 |
 | --- | --- | --- |
-| 実行予定 | `scheduled` | 人間実行指示または有効なPlan continuationにより実行可能 |
+| 実行予定 | `scheduled` | 現在のuser messageで `@excellent-nd` が明示され、実行可能 |
 | 処理中 | `running` | Codexが処理中 |
 | 保留 | `blocked` | 人間判断、外部条件、利用枠等で停止 |
 | レビュー | `review` | 実装・検証が終わりレビュー待ち |
@@ -15,15 +15,11 @@
 
 Symphony実行制御の正本は、GitHub native state、adapterのdispatchability、profileで設定した `required_labels` を満たすrouting / execution-control labelである。通常Taskでは対象repositoryの `.excellent-nd/repository.json` で定義されたrouting labelとhost-specific target labelを要求する。可視化用status labelsもrepository configのmappingを正本とする。標準値は configured routing label / `nd-target:*` / `nd-status:*` だが、固定値として扱わない。
 
-## 実行権限とPlan continuation
+## 明示的dispatch gate
 
-新しいTask / Planの初回dispatchには現在のuser messageで明確な人間実行指示を要求する。`@excellent-nd` は任意の明示記法であり、Skillの自動選択、計画・相談だけではgateを満たさない。
+通常Taskは、現在のuser messageのcase-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間の実行指示として扱い、別個の承認フレーズを要求しない。Skillの自動選択はgateを満たさない。明示指定がなければChatGPT内のPlan・調査・安全なGitHub操作までとし、routing labelを追加・復元しない。
 
-Plan全体への実行指示を受けた事前定義Taskは `dispatch_scope: plan` としてDurable化する。後続Taskは次のPlan reconciliationで、同じPlan、`human_gate: clear`、全dependency closed、repository-native gate PASS、scope/target変更なしを確認できれば、新しい人間指示なしでroutingできる。legacy / `dispatch_scope: task` はTask単位の人間指示を要求する。
-
-これはChatGPTのreconciliation policyであり、独自schedulerやbackground Chat pushを追加しない。人間はIssue番号、routing label、内部resume commandを操作する必要がない。
-
-`review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。人間判断blockは `human_gate: required` とし、人間回答までPlan continuationを停止する。外部blockは `human_gate: clear` を維持でき、条件解消を検証後にPlan continuationで再開できる。
+`review` / `blocked`への遷移は、状態更新と同じIssue updateでrepository configのrouting labelを外す。再開時は現在のuser messageで `@excellent-nd` の明示指定を再確認し、reasonをWorkpadへ保存してからscheduledとroutingを復元する。
 
 通常Task用profileはrepository configのrouting labelとhost-specific target labelの両方をexecution-control条件として要求する。bootstrap Issueにはその条件を付けず、Symphonyのdispatch対象にしない。runtime / profile検証完了後に作成する通常Taskからrouting条件を適用する。target候補は対象repositoryの `.excellent-nd/targets/*.json` を参照し、固定的な台数を仮定しない。
 
@@ -60,10 +56,9 @@ running中にstatus表示目的で configured routing label を外さない。Co
 3. Symphonyがdispatch / continuationしないようexecution-control条件を外す。
 4. execution-target routing identityは変更しない。
 5. 人間回答をIssueへ保存する。
-6. `human_gate: required` の場合は人間回答を確認し、その回答自体を新しい実行指示として `human_gate: clear` へ戻す。Issue番号や特別な承認フレーズを要求しない。
-7. 外部blockで `dispatch_scope: plan` / `human_gate: clear` の場合は、条件解消を検証したPlan reconciliationから再開してよい。
-8. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
-9. 同じTask threadのcontinuationを優先する。
+6. 現在のuser messageで `@excellent-nd` の明示指定を再確認し、resume reasonをWorkpadへ保存する。別個の承認フレーズは要求しない。
+7. `workflow_status` を `scheduled` / 実行予定へ戻し、execution-control条件を再度有効化する。
+8. 同じTask threadのcontinuationを優先する。
 
 ## Runtime interruption record
 
@@ -83,8 +78,7 @@ running中にstatus表示目的で configured routing label を外さない。Co
 
 - usage-limit状態を保存する。
 - Taskを保留したままにする。
-- `dispatch_scope: plan` / `human_gate: clear` なら、後続のPlan reconciliationでquota回復を検証して再開できる。
-- `dispatch_scope: task` またはhuman decision待ちなら、人間の新しい指示を待つ。
+- 人間が後から明示的に再開する。
 
 1.0.xでは独自quota-aware schedulerを作らない。手動再開または既存schedulerが実運用上の負担になった場合のみ再検討する。
 

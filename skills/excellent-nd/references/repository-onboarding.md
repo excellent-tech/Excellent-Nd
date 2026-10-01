@@ -265,7 +265,7 @@ python3 scripts/repository_adapter.py \
   --issue 123
 ```
 
-すべてのconfigured gateがPASSし、target routing、repository-native lock/claim等が成立した場合だけdispatchする。初回Task / Planは現在のuser messageによる明確な人間実行指示を要求する。`@excellent-nd` は任意の明示記法である。既承認Planの後続Taskは `dispatch_scope: plan`、`human_gate: clear`、同一 `plan_ref`、全dependency closedを確認できる場合に限り、新しい人間指示なしでPlan continuationとしてroutingできる。
+すべてのconfigured gateがPASSし、現在のuser messageで `@excellent-nd` が明示され、target routing、repository-native lock/claim等が成立した場合だけdispatchする。`@excellent-nd` の明示指定自体を人間の実行指示として扱い、追加の承認フレーズは要求しない。
 
 ### Runtime event mapping
 

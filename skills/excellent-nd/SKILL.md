@@ -11,8 +11,8 @@ Excellent-NdはオープンソースのAI駆動開発ワークフローである
 
 ## 基本ルール
 
-1. 新しいTaskまたはPlanを初回dispatchする前に、現在のuser messageで実行意図が明示されていることを要求する。`@excellent-nd` は明示方法の1つだが必須構文ではない。「この計画で進めて」「実行して」等の明確な実行指示も有効とする。Skillの自動選択や単なる相談・計画依頼は実行指示とみなさない。
-2. 複数Taskを含むPlan全体が人間により実行指示された場合、既定ではそのPlan配下の事前定義Taskへ実行権限を継承する。TaskごとのIssue番号やExcellent-Nd内部操作を人間へ要求しない。
+1. 通常Taskをdispatchする現在のuser messageに、case-insensitiveな `@excellent-nd` の明示指定を要求する。この指定自体を人間による実行指示として扱い、別個の承認フレーズを要求しない。
+2. Skillの自動選択はdispatch承認ではない。gate未成立時はPlan、調査、安全なGitHub操作までに留める。
 3. ChatGPTで安全に完結するrepository調査、Issue/PR更新、小規模な設定変更、review、result ingestionをCodex dispatchより優先する。
 4. 1.0.xでは原則1 Task = 1 GitHub Issue = 1 Codex threadとする。同一Taskのcontinuationは同一threadを優先する。
 5. `owner` と `execution_target` を分離する。
@@ -86,22 +86,9 @@ dispatch前に対象repositoryのrepository configとtarget台帳を確認し、
 
 30:70等はTask件数比ではなく概算総負荷として扱う。
 
-## 人間の実行指示とPlan継続
+## 明示的な実行指示
 
-初回dispatchでは、現在のuser messageに明確な実行指示を要求する。`@excellent-nd` は任意の明示記法として扱い、特別な承認フレーズを追加要求しない。
-
-複数Taskを含むPlan全体への実行指示では、各Task metadataを `dispatch_scope: "plan"` / `human_gate: "clear"` としてDurable化する。単発Task、段階ごとの確認をユーザーが要求したTask、既存legacy Taskは `dispatch_scope: "task"` とする。
-
-`dispatch_scope: "plan"` の後続Taskは、次にChatGPTがPlanをreconcileする機会に以下を全て満たせば、新しい `@excellent-nd` やIssue単位の人間指示なしでroutingしてよい。
-
-- 同じ `plan_ref` の事前定義Taskである
-- metadataの `human_gate` が `clear` である
-- Durable dependencyが全てterminal / closedである
-- repository-native dispatch gatesが全てPASSする
-- execution target、scope、acceptance criteriaに未承認変更がない
-- routing競合やUNKNOWNがない
-
-この継続はChatGPTのPlan reconciliationで行い、独自schedulerやChatへのbackground pushを追加しない。Skillの自動選択だけで新しいPlanや未計画Taskを開始しない。
+現在のuser messageに `@excellent-nd` が明示されている場合だけ通常Taskをdispatchableにする。`@excellent-nd` の明示指定自体を人間の実行指示とし、別個の承認フレーズを要求しない。Skillが自動選択された場合はこの条件を満たさない。
 
 Task Issueには:
 
@@ -136,7 +123,7 @@ Symphonyへ委ねる:
 
 ## Bootstrap prerequisite
 
-最初のhostにSymphonyがなく通常経路を利用できない場合、人間がChatで明確にbootstrap実行を指示した後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。`@excellent-nd` は任意の明示記法である。
+最初のhostにSymphonyがなく通常経路を利用できない場合、現在のuser messageで `@excellent-nd` が明示された後にbootstrap Issueを作成し、対象host上で人間がCodex CLI等から明示的に開始する。
 
 bootstrap前提:
 
@@ -155,10 +142,7 @@ blocked時:
 - workflow statusをblockedへ更新する
 - repository configで定義されたrouting labelを外す
 - target identity labelはcorrelation用に維持できる
-- 人間判断が必要なblockedでは `human_gate: "required"` とし、人間回答が得られるまで自動継続しない
-- 人間回答そのものを新しい実行指示として扱い、`human_gate: "clear"` へ戻す。Issue番号や特別な承認フレーズを要求しない
-- 外部要因によるblockedで `dispatch_scope: "plan"` / `human_gate: "clear"` を維持できる場合は、条件解消を検証した後のPlan reconciliationで継続してよい
-- `dispatch_scope: "task"`、scope変更、acceptance criteria変更、execution target変更は新しい人間実行指示を要求する
+- resumeには現在のuser messageで再度 `@excellent-nd` の明示指定を要求する。別個の承認フレーズは要求しない
 - 同一Issue / thread continuationを優先する
 
 ## レビュー
@@ -175,8 +159,7 @@ reviewへ遷移する同じdecision stepでrepository configのrouting labelを�
 2. Workpad、linked PR、verificationを読む
 3. Task別に進捗・blocker・riskを要約する
 4. 元Planへ再統合する
-5. terminalになったTaskの後続を確認し、Plan継続条件を満たすTaskがあれば同じturnでfresh preflightしてroutingする。人間へIssue番号やExcellent-Nd内部操作を要求しない
-6. 必要がなければraw log全文を取り込まない
+5. 必要がなければraw log全文を取り込まない
 
 ## Checkpoint
 
