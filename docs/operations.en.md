@@ -187,10 +187,10 @@ An interruption updates `workflow_status=blocked`, `nd-status:blocked`, and remo
 
 ```sh
 python3 scripts/runtime_observer.py resume --repo OWNER/REPOSITORY --issue NUMBER \\
-  --reason "resume condition verified" --explicit-mention
+  --reason "resume condition verified" --human-instruction
 ```
 
-This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. Prefer the same Issue / thread; never redispatch unconditionally.
+This records the decision and restores `scheduled`, `nd-status:scheduled`, and routing. For a dependency-ready successor in an already-authorized Plan, the internal operator path may use `--plan-continuation --plan-ref PLAN_REF`; users should not be asked to manipulate Issue numbers or CLI flags. Prefer the same Issue / thread; never redispatch unconditionally.
 
 ## Registering and removing multiple execution hosts
 
